@@ -1,0 +1,44 @@
+version: '3.8'
+
+networks:
+  trishul-network:
+    driver: bridge
+
+services:
+  # Python FastAPI Backend Service
+  backend:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: trishul-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app
+    environment:
+      - PORT=8000
+      - BIND=0.0.0.0:8000
+      - DATABASE_NAME=auth_db
+      - SECRET_KEY=fallback-secret-key-for-local-development-32-chars
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - MONGODB_URL=${MONGODB_URL}
+      - FRONTEND_URL=http://localhost:3000
+    networks:
+      - trishul-network
+
+  # Next.js Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: trishul-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - trishul-network
