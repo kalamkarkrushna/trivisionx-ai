@@ -224,14 +224,14 @@ const ChatPane = forwardRef(function ChatPane(
                 </motion.p>
               </div>
 
-              {/* Composer (Chat Box) - Positioned in the middle/upper side */}
+              {/* Composer (Chat Box) */}
               <div className="w-full">
                 <Composer
                   ref={composerRef}
-                  onSend={async (text) => {
+                  onSend={async (text, mode) => {
                     if (!text.trim()) return;
                     setBusy(true);
-                    await onSend?.(text);
+                    await onSend?.(text, mode);
                     setBusy(false);
                   }}
                   busy={busy}
@@ -442,10 +442,10 @@ const ChatPane = forwardRef(function ChatPane(
           {/* Composer at the bottom */}
           <Composer
             ref={composerRef}
-            onSend={async (text) => {
+            onSend={async (text, mode) => {
               if (!text.trim()) return;
               setBusy(true);
-              await onSend?.(text);
+              await onSend?.(text, mode);
               setBusy(false);
             }}
             busy={busy}

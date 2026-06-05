@@ -64,16 +64,16 @@ export default function TemplateRow({
 
   return (
     <div className="group">
-      <div className="flex items-center justify-between rounded-lg px-2 py-2 text-sm hover:bg-black/5 dark:hover:bg-[#212121]">
+      <div className="flex items-center justify-between rounded-lg px-2 py-2 text-sm transition-all duration-200 border border-transparent hover:bg-white/40 hover:border-white/50 hover:shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:hover:bg-white/[0.04] dark:hover:border-white/[0.06]">
         <button
           onClick={handleUse}
-          className="flex items-center gap-2 flex-1 text-left min-w-0"
+          className="group/btn flex items-center gap-2 flex-1 text-left min-w-0"
           title={`Use template: ${template.snippet}`}
         >
-          <FileText className="h-4 w-4 text-zinc-500 shrink-0" />
+          <FileText className="h-4 w-4 text-zinc-500 shrink-0 group-hover/btn:text-violet-500 dark:text-zinc-500 dark:group-hover/btn:text-violet-400 transition-colors" />
           <div className="min-w-0 flex-1">
-            <div className="truncate font-medium">{template.name}</div>
-            <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+            <div className="truncate font-medium text-zinc-700 group-hover/btn:text-zinc-900 dark:text-zinc-300 dark:group-hover/btn:text-zinc-100 transition-colors">{template.name}</div>
+            <div className="truncate text-xs text-zinc-500 dark:text-zinc-400 group-hover/btn:text-zinc-600 dark:group-hover/btn:text-zinc-300 transition-colors">
               {template.snippet}
             </div>
           </div>

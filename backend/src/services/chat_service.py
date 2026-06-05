@@ -39,6 +39,7 @@ async def stream_chat_response(
     conversation_id: Optional[str],
     messages_collection,
     conversations_collection,
+    mode: str = "research",
 ) -> AsyncGenerator[str, None]:
     """
     Orchestrates the LangGraph workflow and yields SSE-formatted events.
@@ -73,6 +74,7 @@ async def stream_chat_response(
         "conversation_id": conversation_id,
         "user_id": user_id,
         "report_mode": False,
+        "mode": mode,                # ← "research" or "simple"
         "history": history,          # ← injected — was missing in v2
         "messages": [],
         "plan": [],
@@ -84,7 +86,8 @@ async def stream_chat_response(
         "current_node": "",
     }
 
-    final_text = ""
+    final_text = ""        # from reporter chain end — formatted output for DB persistence
+    streamed_text = ""     # accumulated live tokens — for real-time display
     final_citations = []
     active_node = ""
 
@@ -116,28 +119,37 @@ async def stream_chat_response(
                         yield f"data: {json.dumps({'type': 'citations', 'data': cits})}\n\n"
 
                 # ── Capture final output when reporter completes ─────────────
+                # reporter assembles summary + citation refs into final_output
                 elif name == "reporter":
                     output = data.get("output", {})
-                    final_text = output.get("final_output", "")
+                    final_text = output.get("final_output", streamed_text)
                     final_citations = output.get("citations", final_citations)
 
             # ── True token streaming from the LLM ────────────────────────────
             elif kind == "on_chat_model_stream":
                 chunk = data.get("chunk")
                 if chunk and hasattr(chunk, "content") and chunk.content:
-                    yield f"data: {json.dumps({'type': 'token', 'data': chunk.content})}\n\n"
+                    token = chunk.content
+                    streamed_text += token
+                    # Emit with BOTH field names for compatibility:
+                    # - type/data: standard format consumed by AIAssistantUI.jsx
+                    # - text: legacy alias kept for safety
+                    yield f"data: {json.dumps({'type': 'token', 'data': token, 'text': token})}\n\n"
+
 
         # ── Done event ────────────────────────────────────────────────────────
         yield f"data: {json.dumps({'done': True, 'sources': final_citations})}\n\n"
 
         # ── Persist assistant response ────────────────────────────────────────
-        if conversation_id and final_text:
+        # Use final_text (reporter formatted with citations); fall back to streamed_text
+        persist_text = final_text or streamed_text
+        if conversation_id and persist_text:
             try:
                 await insert_message(
                     conversation_id=conversation_id,
                     user_id=user_id,
                     role="assistant",
-                    content=final_text,
+                    content=persist_text,
                     sources=final_citations,
                 )
                 await touch_conversation(conversation_id)

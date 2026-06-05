@@ -61,20 +61,20 @@ export default function FolderRow({
 
   return (
     <div className="group">
-      <div className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 transition-colors">
+      <div className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm transition-all duration-200 border border-transparent hover:bg-white/40 hover:border-white/50 hover:shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:hover:bg-white/[0.04] dark:hover:border-white/[0.06]">
         <button
           onClick={handleToggle}
-          className="flex items-center gap-2 flex-1 text-left min-w-0"
+          className="group/btn flex items-center gap-2 flex-1 text-left min-w-0"
         >
-          <div className="flex h-4 w-4 shrink-0 items-center justify-center">
+          <div className="flex h-4 w-4 shrink-0 items-center justify-center transition-colors">
             {expanded ? (
-              <ChevronDown className="h-3 w-3 text-zinc-500" />
+              <ChevronDown className="h-3 w-3 text-zinc-500 group-hover/btn:text-violet-500 dark:text-zinc-500 dark:group-hover/btn:text-violet-400" />
             ) : (
-              <ChevronRight className="h-3 w-3 text-zinc-500" />
+              <ChevronRight className="h-3 w-3 text-zinc-500 group-hover/btn:text-violet-500 dark:text-zinc-500 dark:group-hover/btn:text-violet-400" />
             )}
           </div>
-          <FolderIcon className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-          <span className="truncate text-[12px] font-medium text-zinc-700 dark:text-zinc-300">
+          <FolderIcon className="h-3.5 w-3.5 shrink-0 text-zinc-500 group-hover/btn:text-violet-500 dark:text-zinc-500 dark:group-hover/btn:text-violet-400 transition-colors" />
+          <span className="truncate text-[12px] font-medium text-zinc-700 group-hover/btn:text-zinc-900 dark:text-zinc-300 dark:group-hover/btn:text-zinc-100 transition-colors">
             {name}
           </span>
         </button>

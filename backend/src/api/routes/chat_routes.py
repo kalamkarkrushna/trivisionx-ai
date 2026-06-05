@@ -75,6 +75,7 @@ async def chat(
             conversation_id=request.conversation_id,
             messages_collection=db[COLLECTION_MESSAGES],
             conversations_collection=db[COLLECTION_CONVERSATIONS],
+            mode=request.mode,
         ),
         media_type="text/event-stream",
         headers={

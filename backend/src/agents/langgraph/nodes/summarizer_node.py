@@ -15,7 +15,7 @@ from src.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-SUMMARIZER_SYSTEM = """You are an expert AI Research Analyst (Summary Agent).
+SUMMARIZER_SYSTEM_RESEARCH = """You are an expert AI Research Analyst (Summary Agent).
 
 Your task is to synthesize retrieved document chunks into a clear, accurate,
 well-cited answer to the user's research question.
@@ -36,6 +36,17 @@ STRICT RULES:
 
 CONTEXT (retrieved document chunks):
 {context}"""
+
+SUMMARIZER_SYSTEM_SIMPLE = """You are Trishul AI, a helpful and knowledgeable AI assistant.
+
+Answer the user's question directly and clearly based on your own knowledge.
+Do not mention documents or retrieval — just give a helpful, well-structured response.
+
+RULES:
+1. Be concise but thorough.
+2. Use markdown formatting where helpful (headers, bullets, bold for key terms).
+3. Consider the conversation history to maintain continuity.
+4. Be friendly yet precise — adapt your tone to the question."""
 
 
 def _build_context(docs: list) -> str:
@@ -61,24 +72,32 @@ def _build_context(docs: list) -> str:
 
 async def summarizer_node(state: AgentState) -> dict:
     """
-    Summary Agent — synthesizes retrieved documents into a high-quality answer.
-    Uses GPT-4o with full conversation history for context-aware responses.
+    Summary Agent — synthesizes a high-quality answer.
+    - mode='research': uses retrieved docs as grounded context (RAG)
+    - mode='simple':   answers directly from LLM knowledge (no docs)
     """
     query = state.get("query", "")
     docs = state.get("retrieved_docs", [])
     history = state.get("history", [])
+    mode = state.get("mode", "research")
 
-    context = _build_context(docs)
     logger.info(
-        f"[Summary Agent] Synthesizing {len(docs)} chunks "
+        f"[Summary Agent] Mode='{mode}' | Synthesizing {len(docs)} chunks "
         f"(history={len(history)} turns) for '{query[:60]}'"
     )
 
     llm = get_chat_llm()
 
-    messages = [SystemMessage(content=SUMMARIZER_SYSTEM.format(context=context))]
+    # ── Choose system prompt based on mode ────────────────────────────────────
+    if mode == "simple":
+        system_prompt = SUMMARIZER_SYSTEM_SIMPLE
+    else:
+        context = _build_context(docs)
+        system_prompt = SUMMARIZER_SYSTEM_RESEARCH.format(context=context)
 
-    # Inject conversation history — last 6 turns for GPT-4o context window efficiency
+    messages = [SystemMessage(content=system_prompt)]
+
+    # Inject conversation history — last 6 turns for context window efficiency
     for turn in history[-6:]:
         role = turn.get("role", "")
         content = turn.get("content", "")

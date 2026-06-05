@@ -348,7 +348,7 @@ export default function AIAssistantUI() {
     );
   }
 
-  async function sendMessage(convId, content) {
+  async function sendMessage(convId, content, mode = "research") {
     const token = localStorage.getItem("token");
     if (!content.trim() || !token) return;
 
@@ -438,7 +438,7 @@ export default function AIAssistantUI() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ msg: content, conversation_id: targetConvId }),
+        body: JSON.stringify({ msg: content, conversation_id: targetConvId, mode }),
       });
 
       if (!response.ok) {
@@ -463,28 +463,28 @@ export default function AIAssistantUI() {
               const dataStr = line.slice(6);
               try {
                 const data = JSON.parse(dataStr);
+
+                // ── Error ──────────────────────────────────────────────────
                 if (data.error) {
                   throw new Error(data.error);
                 }
-                if (data.text) {
-                  // Turn off thinking once we start receiving text
+
+                // ── Token stream: {type: "token", data: "<text>"} ──────────
+                // Backend streams tokens via on_chat_model_stream events.
+                // NOTE: the field is data.data NOT data.text.
+                if (data.type === "token" && data.data) {
+                  // Turn off thinking spinner once first token arrives
                   setIsThinking(false);
                   setThinkingConvId(null);
 
-                  textContent += data.text;
+                  textContent += data.data;
                   setConversations((prev) =>
                     prev.map((c) => {
-                      // IMPORTANT: use targetConvId (the real DB id), not convId (which may be "new")
                       if (c.id !== targetConvId) return c;
-
-                      // Find if we already have the assistant message in this conversation
-                      const hasAsstMsg = c.messages.some(
-                        (m) => m.id === asstMsgId,
-                      );
-
+                      const hasAsstMsg = c.messages.some((m) => m.id === asstMsgId);
                       let msgs;
                       if (!hasAsstMsg) {
-                        // Insert new assistant message if it's the first chunk
+                        // First token — insert the assistant message
                         msgs = [
                           ...c.messages,
                           {
@@ -495,39 +495,41 @@ export default function AIAssistantUI() {
                           },
                         ];
                       } else {
-                        // Update existing assistant message
+                        // Subsequent tokens — update in place
                         msgs = c.messages.map((m) =>
-                          m.id === asstMsgId
-                            ? { ...m, content: textContent }
-                            : m,
+                          m.id === asstMsgId ? { ...m, content: textContent } : m,
                         );
                       }
-
-                      return {
-                        ...c,
-                        messages: msgs,
-                        preview: textContent.slice(0, 80),
-                      };
+                      return { ...c, messages: msgs, preview: textContent.slice(0, 80) };
                     }),
                   );
                 }
+
+                // ── Agent node activity: {node: "planner"|…, status: "running"|"completed"} ──
+                if (data.node) {
+                  setAgentState(data.node);
+                }
+
+                // ── Citations: {type: "citations", data: [...]} ─────────────
+                if (data.type === "citations" && data.data) {
+                  // Citations will be attached to the message on done
+                }
+
+                // ── Done: {done: true, sources: [...]} ──────────────────────
                 if (data.done) {
                   setConversations((prev) =>
                     prev.map((c) => {
-                      // IMPORTANT: use targetConvId (the real DB id)
                       if (c.id !== targetConvId) return c;
                       const msgs = c.messages.map((m) =>
-                        m.id === asstMsgId
-                          ? { ...m, sources: data.sources }
-                          : m,
+                        m.id === asstMsgId ? { ...m, sources: data.sources } : m,
                       );
                       return { ...c, messages: msgs };
                     }),
                   );
                   setAgentState(null);
-                }
-                if (data.node) {
-                  setAgentState(data.node);
+                  // Also clear thinking in case no tokens arrived (edge case)
+                  setIsThinking(false);
+                  setThinkingConvId(null);
                 }
               } catch (e) {
                 // Ignore incomplete JSON parses as chunks might break mid-string, although unlikely with \n\n boundaries
@@ -656,7 +658,7 @@ export default function AIAssistantUI() {
         <ChatPane
           ref={composerRef}
           conversation={selected}
-          onSend={(content) => selected && sendMessage(selected.id, content)}
+          onSend={(content, mode) => selected && sendMessage(selected.id, content, mode)}
           onEditMessage={(messageId, newContent) =>
             selected && editMessage(selected.id, messageId, newContent)
           }

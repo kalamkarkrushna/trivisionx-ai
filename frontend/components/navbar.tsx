@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TrishulLogo } from "@/components/TrishulLogo";
 import Link from "next/link";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+import { useTheme } from "next-themes";
 
 const navItems = [
   { label: "Features", href: "#features" },
@@ -19,6 +21,15 @@ export function Navbar() {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
+
+  const { theme, setTheme, systemTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const resolvedTheme = theme === "system" ? systemTheme : theme;
 
   return (
     <motion.header
@@ -84,6 +95,16 @@ export function Navbar() {
               <span className="relative">Sign Up</span>
             </Link>
           </Button>
+        </div>
+        <div className="flex justify-center p-1">
+          {mounted ? (
+            <AnimatedThemeToggler
+              theme={resolvedTheme as "light" | "dark"}
+              onThemeChange={(newTheme) => setTheme(newTheme)}
+            />
+          ) : (
+            <div className="w-8 h-8" /> /* Placeholder to prevent layout shift */
+          )}
         </div>
 
         {/* Mobile Menu Button */}

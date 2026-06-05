@@ -58,10 +58,23 @@ async def planner_node(state: AgentState) -> dict:
     """
     Research Agent — analyzes the query and generates a multi-angle research plan.
     Injects conversation history to handle follow-up queries correctly.
+
+    When mode='simple': immediately returns empty plan → forces direct LLM path.
+    When mode='research': runs full RAG-based planning as usual.
     """
     query = state.get("query", "")
     history = state.get("history", [])
-    logger.info(f"[Research Agent] Planning for: '{query[:80]}'")
+    mode = state.get("mode", "research")
+    logger.info(f"[Research Agent] Mode='{mode}' | Planning for: '{query[:80]}'")
+
+    # ── Simple mode: skip RAG entirely ───────────────────────────────────────
+    if mode == "simple":
+        logger.info("[Research Agent] Simple mode — bypassing retrieval")
+        return {
+            "plan": [],
+            "current_node": "planner",
+            "errors": [],
+        }
 
     # Fast-path heuristic for simple greetings to save LLM roundtrip latency
     clean_query = query.strip().lower()

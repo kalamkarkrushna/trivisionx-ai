@@ -31,6 +31,9 @@ class AgentState(TypedDict):
     # Flag: True = full structured report, False = chat answer
     report_mode: bool
 
+    # Answer mode: "research" = full RAG pipeline, "simple" = direct LLM (no retrieval)
+    mode: str
+
     # ── Conversation history ─────────────────────────────────────────────────
     # Last N {role, content} turns from MongoDB — injected before graph runs
     history: List[Dict[str, str]]

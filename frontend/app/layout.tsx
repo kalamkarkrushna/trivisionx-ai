@@ -32,6 +32,7 @@ export const metadata: Metadata = {
 import { Toaster } from 'sonner';
 
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export default function RootLayout({
   children,
@@ -41,11 +42,18 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning={true}>
       <body className="font-sans antialiased">
-        <TooltipProvider>
-          {children}
-        </TooltipProvider>
-        <Toaster position="bottom-right" richColors />
-        <Analytics />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <TooltipProvider>
+            {children}
+          </TooltipProvider>
+          <Toaster position="bottom-right" richColors />
+          <Analytics />
+        </ThemeProvider>
       </body>
     </html>
   );

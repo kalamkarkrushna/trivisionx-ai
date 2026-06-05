@@ -10,10 +10,13 @@ import {
   Settings,
   Sparkles,
   Zap,
+  Palette,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { UserProfileModal } from "./UserProfileModal";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "next-themes";
+import { AnimatedThemeToggler } from "./ui/animated-theme-toggler";
 
 /* ── tiny shimmer border helper ─────────────────────────────────────────── */
 function ShimmerBorder({ className = "" }) {
@@ -41,18 +44,20 @@ function MenuItem({
   suffix,
   onClick,
   danger = false,
+  as: Component = motion.button,
+  className = "",
 }) {
   return (
-    <motion.button
+    <Component
       onClick={onClick}
-      whileHover={{ x: 2 }}
+      whileHover={Component === motion.button ? { x: 2 } : undefined}
       transition={{ duration: 0.15 }}
-      className={`group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-[12.5px] text-left transition-all duration-150 active:scale-[0.98]
+      className={`group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-[12.5px] text-left transition-all duration-150 ${Component === motion.button ? "active:scale-[0.98]" : ""}
         ${
           danger
             ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
             : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100/80 dark:hover:bg-white/[0.06]"
-        }`}
+        } ${className}`}
     >
       <div
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${danger ? "bg-red-50 dark:bg-red-500/10" : iconBg}`}
@@ -70,7 +75,7 @@ function MenuItem({
         </span>
       )}
       {suffix}
-    </motion.button>
+    </Component>
   );
 }
 
@@ -79,6 +84,15 @@ export default function SettingsPopover({ children, onUserUpdate = () => {} }) {
   const [open, setOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [user, setUser] = useState(null);
+
+  const { theme, setTheme, systemTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const resolvedTheme = theme === "system" ? systemTheme : theme;
 
   useEffect(() => {
     const token =
@@ -181,6 +195,28 @@ export default function SettingsPopover({ children, onUserUpdate = () => {} }) {
                       setOpen(false);
                       setIsProfileOpen(true);
                     }}
+                  />
+                  <MenuItem
+                    as="div"
+                    icon={Palette}
+                    label="Appearance"
+                    className="cursor-default"
+                    suffix={
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] capitalize text-zinc-400">
+                          {mounted ? resolvedTheme : "system"}
+                        </span>
+                        {mounted && (
+                          <div className="flex items-center justify-center p-1 rounded-md bg-zinc-200/50 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer">
+                            <AnimatedThemeToggler
+                              theme={resolvedTheme}
+                              onThemeChange={(newTheme) => setTheme(newTheme)}
+                              className="w-4 h-4 text-zinc-600 dark:text-zinc-300 [&>svg]:w-3.5 [&>svg]:h-3.5"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    }
                   />
                   <MenuItem
                     icon={Globe}
