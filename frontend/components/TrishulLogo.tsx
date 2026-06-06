@@ -83,21 +83,21 @@ export function TrishulLogo({
           />
         )}
 
-        {/* Premium solid icon box — Zinc palette */}
+        {/* Premium solid icon box */}
         <div
           className={`relative flex items-center justify-center overflow-hidden select-none z-10 ${cfg.box}
-            bg-zinc-950 dark:bg-zinc-900
-            border border-zinc-800 dark:border-zinc-700
-            shadow-lg shadow-black/40`}
+            bg-white dark:bg-zinc-900
+            border border-zinc-200 dark:border-zinc-700
+            shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-black/40 transition-colors duration-300`}
         >
           {/* Subtle inner shine */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10 dark:from-black/5 dark:to-black/5 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-br from-black/5 via-transparent to-black/5 dark:from-white/10 dark:via-transparent dark:to-black/10 pointer-events-none" />
           {/* Animated sweeping shine */}
-          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-black/5 dark:via-white/10 to-transparent pointer-events-none" />
 
           {/* Trident / fork SVG */}
           <svg
-            className={`relative ${cfg.icon} text-zinc-100`}
+            className={`relative ${cfg.icon} text-zinc-900 dark:text-zinc-100 transition-colors duration-300`}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

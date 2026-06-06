@@ -7,7 +7,7 @@ import {
   useImperativeHandle,
   useEffect,
 } from "react";
-import { Send, Loader2, Plus, Mic, StopCircle, Paperclip, ChevronDown, FlaskConical, Zap, BookOpen } from "lucide-react";
+import { Send, Loader2, Plus, Mic, StopCircle, Paperclip, ChevronDown, FlaskConical, Zap, BookOpen, Asterisk, Check, Bot, BrainCircuit, Hexagon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ComposerActionsPopover from "./ComposerActionsPopover";
 import { cn } from "@/lib/utils";
@@ -43,148 +43,127 @@ const MODES = [
 ];
 
 // ─── Mode Selector Dropdown ───────────────────────────────────────────────────
-function ModeSelector({ mode, onChange }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  const dropdownRef = useRef(null);
-  const current = MODES.find((m) => m.id === mode) || MODES[0];
-  const Icon = current.icon;
+// ─── Shadcn UI style Mode Toggle ──────────────────────────────────────────────
+function ShadcnModeToggle({ mode, onChange }) {
+  return (
+    <div className="flex items-center rounded-lg bg-zinc-100/80 p-0.5 dark:bg-zinc-800/80 border border-zinc-200/50 dark:border-zinc-700/50">
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); onChange("simple"); }}
+        className={cn(
+          "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all duration-200",
+          mode === "simple"
+            ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100"
+            : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+        )}
+      >
+        <Zap className="h-3 w-3" />
+        Fast
+      </button>
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); onChange("research"); }}
+        className={cn(
+          "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all duration-200",
+          mode === "research"
+            ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100"
+            : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+        )}
+      >
+        <FlaskConical className="h-3 w-3" />
+        Deep Research
+      </button>
+    </div>
+  );
+}
 
-  // Close on outside click
+// ─── Model Selector ──────────────────────────────────────────────────────────
+const CHATBOTS = [
+  { name: "GPT-5", icon: <Bot className="h-3.5 w-3.5" />, desc: "OpenAI's latest" },
+  { name: "Claude Sonnet 4", icon: <BrainCircuit className="h-3.5 w-3.5" />, desc: "Anthropic" },
+  { name: "Gemini", icon: <Hexagon className="h-3.5 w-3.5" />, desc: "Google DeepMind" },
+  {
+    name: "Assistant",
+    icon: <Asterisk className="h-3.5 w-3.5" />,
+    desc: "Trishul AI",
+  },
+];
+
+function ModelSelector() {
+  const [selectedBot, setSelectedBot] = useState("GPT-5");
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const current = CHATBOTS.find((b) => b.name === selectedBot);
+
   useEffect(() => {
-    if (!open) return;
     function handleOutside(e) {
-      if (
-        ref.current && !ref.current.contains(e.target) &&
-        dropdownRef.current && !dropdownRef.current.contains(e.target)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleOutside);
+    if (open) document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [open]);
 
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    function handleKey(e) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [open]);
-
   return (
-    <div className="relative" ref={ref}>
-      {/* Trigger button — plain button, no Tooltip wrapper to avoid event conflicts */}
+    <div className="relative" ref={dropdownRef}>
       <button
         type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
-        title={`${current.label}: ${current.description}`}
-        className={cn(
-          "group flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all duration-200 select-none",
-          "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300 hover:bg-white hover:shadow-sm",
-          "dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-700/80",
-          open && "border-zinc-300 bg-white shadow-sm dark:border-zinc-600 dark:bg-zinc-700/80",
-        )}
+        onClick={() => setOpen(!open)}
+        className="flex h-8 w-[140px] items-center justify-between whitespace-nowrap rounded-md border border-transparent bg-transparent px-2.5 py-2 text-[11.5px] font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50 dark:focus-visible:ring-zinc-300"
       >
-        <span className={cn("h-1.5 w-1.5 rounded-full shrink-0 transition-colors", current.dotColor)} />
-        <Icon className="h-3 w-3" />
-        <span>{current.shortLabel}</span>
-        <ChevronDown
-          className={cn(
-            "h-2.5 w-2.5 text-zinc-400 transition-transform duration-200",
-            open && "rotate-180",
+        <span className="flex items-center gap-2 truncate">
+          {typeof current?.icon === "string" ? (
+            <span className="text-[13px] leading-none">{current.icon}</span>
+          ) : (
+            <span className="flex h-3.5 w-3.5 items-center justify-center">
+              {current?.icon}
+            </span>
           )}
-        />
+          <span className="truncate">{selectedBot}</span>
+        </span>
+        <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
       </button>
 
-      {/* Dropdown — rendered with AnimatePresence, positioned above the button */}
       <AnimatePresence>
         {open && (
           <motion.div
-            ref={dropdownRef}
-            initial={{ opacity: 0, y: 8, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.96 }}
-            transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            // Position above the trigger button
-            className="absolute bottom-[calc(100%+8px)] left-0 z-[9999] w-64 rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 overflow-hidden"
-            style={{ minWidth: "256px" }}
+            initial={{ opacity: 0, y: 2 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 2 }}
+            transition={{ duration: 0.15 }}
+            className="absolute bottom-[calc(100%+4px)] right-0 z-[9999] min-w-[12rem] overflow-hidden rounded-md border border-zinc-200 bg-white p-1 text-zinc-950 shadow-md dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50"
           >
-            {/* Header */}
-            <div className="border-b border-zinc-100 dark:border-zinc-800 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                Answer Mode
-              </p>
+            <div className="px-2 py-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+              Select a model
             </div>
-
-            {/* Mode options */}
-            <div className="p-1.5 space-y-0.5">
-              {MODES.map((m) => {
-                const MIcon = m.icon;
-                const isActive = m.id === mode;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onChange(m.id);
-                      setOpen(false);
-                    }}
-                    className={cn(
-                      "flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-100",
-                      isActive
-                        ? "bg-zinc-100 dark:bg-zinc-800"
-                        : "hover:bg-zinc-50 dark:hover:bg-zinc-800/70 active:bg-zinc-100 dark:active:bg-zinc-800",
-                    )}
-                  >
-                    {/* Icon */}
-                    <div
-                      className={cn(
-                        "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm",
-                        m.gradient,
-                      )}
-                    >
-                      <MIcon className="h-4 w-4" />
-                    </div>
-
-                    {/* Text */}
-                    <div className="flex-1 min-w-0 pt-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
-                          {m.label}
-                        </span>
-                        <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-bold leading-none", m.badgeColor)}>
-                          {m.badge}
-                        </span>
-                        {isActive && (
-                          <span className="ml-auto flex h-4 w-4 items-center justify-center rounded-full bg-zinc-900 dark:bg-white shrink-0">
-                            <svg
-                              className="h-2.5 w-2.5 text-white dark:text-zinc-900"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={3}
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-0.5 text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
-                        {m.description}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            {CHATBOTS.map((bot) => (
+              <button
+                key={bot.name}
+                type="button"
+                onClick={() => {
+                  setSelectedBot(bot.name);
+                  setOpen(false);
+                }}
+                className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 outline-none transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+              >
+                <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+                  {selectedBot === bot.name && (
+                    <Check className="h-4 w-4" />
+                  )}
+                </span>
+                <span className="flex items-center gap-2 truncate text-xs">
+                  {typeof bot.icon === "string" ? (
+                    <span className="text-[13px] leading-none">{bot.icon}</span>
+                  ) : (
+                    <span className="flex h-3.5 w-3.5 items-center justify-center">
+                      {bot.icon}
+                    </span>
+                  )}
+                  {bot.name}
+                </span>
+              </button>
+            ))}
           </motion.div>
         )}
       </AnimatePresence>
@@ -197,6 +176,7 @@ const Composer = forwardRef(function Composer({ onSend, busy, defaultMode = "res
   const [value, setValue] = useState("");
   const [sending, setSending] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [mode, setMode] = useState(defaultMode);
   const inputRef = useRef(null);
 
@@ -315,23 +295,41 @@ const Composer = forwardRef(function Composer({ onSend, busy, defaultMode = "res
               <TooltipContent side="top">Attach file</TooltipContent>
             </Tooltip>
 
-            {/* ── Mode Selector ── */}
-            <ModeSelector mode={mode} onChange={setMode} />
+            {/* ── Mode Toggle ── */}
+            <ShadcnModeToggle mode={mode} onChange={setMode} />
           </div>
 
-          {/* Right: Mic + Send */}
+          {/* Right: Model + Mic + Send */}
           <div className="flex items-center gap-1.5">
+            <ModelSelector />
+
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                >
-                  <Mic className="h-4 w-4" />
-                </Button>
+                <div className="relative flex items-center justify-center">
+                  {isListening && (
+                    <>
+                      <span className="absolute inset-0 rounded-full animate-ping bg-red-500/40" />
+                      <span className="absolute -inset-1 rounded-full animate-pulse bg-red-500/20" />
+                    </>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsListening(!isListening)}
+                    className={cn(
+                      "relative h-8 w-8 rounded-full transition-all duration-300",
+                      isListening
+                        ? "bg-red-500 text-white hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Mic className={cn("h-4 w-4", isListening && "animate-pulse")} />
+                  </Button>
+                </div>
               </TooltipTrigger>
-              <TooltipContent side="top">Voice input</TooltipContent>
+              <TooltipContent side="top">
+                {isListening ? "Listening... Click to stop" : "Voice input"}
+              </TooltipContent>
             </Tooltip>
 
             <Tooltip>

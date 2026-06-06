@@ -7,11 +7,10 @@ import React, {
   useState,
   useCallback,
 } from "react";
-import { AppSidebar } from "./AppSidebar";
+import Sidebar from "./Sidebar";
 import ChatPane from "./ChatPane";
 import Header from "./Header";
 import { INITIAL_TEMPLATES, INITIAL_FOLDERS } from "./mockData";
-import { SidebarProvider } from "./ui/sidebar";
 
 export default function AIAssistantUI() {
   const [theme, setTheme] = useState(() => {
@@ -612,13 +611,10 @@ export default function AIAssistantUI() {
   }, [selectedId, conversations]);
 
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-full overflow-hidden bg-white text-zinc-900 dark:bg-[#212121] dark:text-zinc-100">
-        <AppSidebar
+    <div className="flex h-screen w-full overflow-hidden bg-white text-zinc-900 dark:bg-[#212121] dark:text-zinc-100">
+      <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        theme={theme}
-        setTheme={setTheme}
         collapsed={collapsed}
         setCollapsed={setCollapsed}
         sidebarCollapsed={sidebarCollapsed}
@@ -671,6 +667,5 @@ export default function AIAssistantUI() {
         />
       </main>
     </div>
-    </SidebarProvider>
   );
 }

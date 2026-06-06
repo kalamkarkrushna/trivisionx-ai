@@ -97,7 +97,8 @@ export default function FolderRow({
             <PopoverContent
               side="right"
               align="start"
-              className="w-40 p-1.5 rounded-2xl border-zinc-200/80 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-white/[0.08] dark:bg-zinc-900/95"
+              sideOffset={12}
+              className="w-40 p-1.5 rounded-2xl border-zinc-200/80 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-white/[0.08] dark:bg-zinc-900/95 z-[9999]"
             >
               <div className="space-y-0.5">
                 <button

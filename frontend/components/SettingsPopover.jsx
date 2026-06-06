@@ -47,11 +47,12 @@ function MenuItem({
   as: Component = motion.button,
   className = "",
 }) {
+  const motionProps = Component === motion.button ? { whileHover: { x: 2 }, transition: { duration: 0.15 } } : {};
+
   return (
     <Component
       onClick={onClick}
-      whileHover={Component === motion.button ? { x: 2 } : undefined}
-      transition={{ duration: 0.15 }}
+      {...motionProps}
       className={`group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-[12.5px] text-left transition-all duration-150 ${Component === motion.button ? "active:scale-[0.98]" : ""}
         ${
           danger

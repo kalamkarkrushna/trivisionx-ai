@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { FileText, MoreHorizontal, Copy, Edit3, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
 export default function TemplateRow({
   template,
@@ -84,56 +85,57 @@ export default function TemplateRow({
             Use
           </span>
 
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowMenu(!showMenu);
-              }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-black/10 dark:hover:bg-[#2f2f2f] transition-opacity"
+          <Popover open={showMenu} onOpenChange={setShowMenu}>
+            <PopoverTrigger asChild>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMenu(true);
+                }}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-black/10 dark:hover:bg-[#2f2f2f] transition-opacity"
+              >
+                <MoreHorizontal className="h-3 w-3" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              side="right"
+              align="start"
+              sideOffset={12}
+              className="w-40 p-1.5 rounded-2xl border-zinc-200/80 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-white/[0.08] dark:bg-zinc-900/95 z-[9999]"
             >
-              <MoreHorizontal className="h-3 w-3" />
-            </button>
-
-            <AnimatePresence>
-              {showMenu && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="absolute right-0 top-full mt-1 w-36 rounded-lg border border-black/10 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#2f2f2f] z-[100]"
+              <div className="space-y-0.5">
+                <button
+                  onClick={handleUse}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
                 >
-                  <button
-                    onClick={handleUse}
-                    className="w-full px-3 py-1.5 text-left text-xs hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-2"
-                  >
-                    <Copy className="h-3 w-3" />
-                    Use Template
-                  </button>
-                  <button
-                    onClick={handleEdit}
-                    className="w-full px-3 py-1.5 text-left text-xs hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-2"
-                  >
-                    <Edit3 className="h-3 w-3" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={handleRename}
-                    className="w-full px-3 py-1.5 text-left text-xs hover:bg-black/5 dark:hover:bg-white/5"
-                  >
-                    Rename
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-2"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                    Delete
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                  <Copy className="h-3.5 w-3.5" />
+                  Use Template
+                </button>
+                <button
+                  onClick={handleEdit}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+                >
+                  <Edit3 className="h-3.5 w-3.5" />
+                  Edit
+                </button>
+                <button
+                  onClick={handleRename}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+                >
+                  <Edit3 className="h-3.5 w-3.5" />
+                  Rename
+                </button>
+                <div className="my-1 h-px bg-zinc-100 dark:bg-white/[0.05]" />
+                <button
+                  onClick={handleDelete}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     </div>

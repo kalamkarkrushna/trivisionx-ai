@@ -177,7 +177,7 @@ const ChatPane = forwardRef(function ChatPane(
       await navigator.clipboard.writeText(text);
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
-    } catch {}
+    } catch { }
   }
 
   if (!conversation) return null;
