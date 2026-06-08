@@ -48,4 +48,4 @@ if __name__ == "__main__":
     _free_port(PORT)
     print("Running uvicorn...")
     import uvicorn
-    uvicorn.run("index:app", host="127.0.0.1", port=PORT)
+    uvicorn.run("index:app", host="0.0.0.0", port=PORT)
