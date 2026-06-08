@@ -31,34 +31,7 @@ STRICT RULES:
 CONTEXT (retrieved document chunks):
 {context}"""
 
-SUMMARIZER_SYSTEM_COMPETITIVE = """You are an expert Competitive Analyst.
 
-Your task is to compare and contrast entities based ONLY on the provided context.
-Focus on pros, cons, pricing, features, and market positioning.
-
-STRICT RULES:
-1. Base your answer ONLY on the provided document context below.
-2. NEVER hallucinate. If info is missing, state it.
-3. Use a structured comparison format (e.g., tables, bulleted lists, pros/cons).
-4. Cite sources inline using the format: [Source: filename, Page X].
-
-CONTEXT:
-{context}"""
-
-SUMMARIZER_SYSTEM_TECHNICAL = """You are an Expert Technical Architect and Developer.
-
-Your task is to analyze technical documentation, system architectures, or code
-provided in the context below. Focus on exact specifications, code examples,
-and technical constraints.
-
-STRICT RULES:
-1. Base your answer ONLY on the provided document context below.
-2. Provide precise technical details. Do not simplify technical jargon unless asked.
-3. Use markdown code blocks (` ``` `) for any code snippets or JSON.
-4. Cite sources inline using the format: [Source: filename, Page X].
-
-CONTEXT:
-{context}"""
 
 SUMMARIZER_SYSTEM_SIMPLE = """You are AI Research Assistant, a helpful and knowledgeable AI assistant.
 
@@ -111,20 +84,6 @@ async def summarizer_node(state: AgentState) -> dict:
         system_prompt = SUMMARIZER_SYSTEM_SIMPLE
         llm = get_chat_llm(model_name="gemini-1.5-flash", temperature=0.5)
         history_turns = 2
-    elif mode == "competitive":
-        if not docs:
-            return {"summary": "No competitive information found in documents.", "current_node": "summarizer"}
-        context = _build_context(docs)
-        system_prompt = SUMMARIZER_SYSTEM_COMPETITIVE.format(context=context)
-        llm = get_chat_llm()
-        history_turns = 6
-    elif mode == "technical":
-        if not docs:
-            return {"summary": "No technical information found in documents.", "current_node": "summarizer"}
-        context = _build_context(docs)
-        system_prompt = SUMMARIZER_SYSTEM_TECHNICAL.format(context=context)
-        llm = get_chat_llm()
-        history_turns = 6
     else:
         if not docs:
             return {"summary": "No information found in the documents to answer this query.", "current_node": "summarizer"}
@@ -146,19 +105,19 @@ async def summarizer_node(state: AgentState) -> dict:
 
     messages.append(HumanMessage(content=query))
 
-    from google.api_core.exceptions import ResourceExhausted
-
     try:
         response = await llm.ainvoke(messages)
         summary_text = response.content
-    except ResourceExhausted as e:
-        logger.error(f"Gemini quota exceeded: {e}")
+    except Exception as e:
+        logger.error(f"Gemini API error in summarizer: {e}")
         
         # Check if it's the daily limit
         if "PerDayPerProjectPerModel" in str(e):
             summary_text = "Daily AI quota exhausted. Please upgrade your billing plan or wait for the quota to reset."
+        elif "503" in str(e) or "UNAVAILABLE" in str(e).upper():
+            summary_text = "The AI provider (Gemini) is currently experiencing high demand. Spikes in demand are usually temporary. Please wait a moment and try again."
         else:
-            summary_text = "The AI provider quota has been exhausted. Please try again later or switch models."
+            summary_text = f"The AI provider encountered an error. Please try again later. ({str(e)[:50]}...)"
 
     logger.info(
         f"[Summary Agent] Generated {len(summary_text)} char response"

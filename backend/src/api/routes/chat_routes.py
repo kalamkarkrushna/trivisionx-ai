@@ -19,7 +19,7 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-@router.post("/", summary="Send a chat message (SSE stream)")
+@router.post("", summary="Send a chat message (SSE stream)")
 async def chat(
     request: QueryRequest,
     current_user=Depends(get_current_user),

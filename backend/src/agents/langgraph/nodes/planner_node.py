@@ -19,17 +19,17 @@ logger = get_logger(__name__)
 
 
 class ResearchPlan(BaseModel):
-    needs_retrieval: bool = Field(
+    retrieval: bool = Field(
         description=(
             "True if the query requires retrieving documents from the vector store. "
             "False for greetings, casual questions, or simple factual queries."
         )
     )
-    search_queries: List[str] = Field(
+    queries: List[str] = Field(
         description=(
             "2–4 specific, targeted search queries to run against the vector store. "
             "Each query should cover a different angle of the research topic. "
-            "Empty list when needs_retrieval=False."
+            "Empty list when retrieval=False."
         )
     )
     rationale: str = Field(
@@ -37,21 +37,57 @@ class ResearchPlan(BaseModel):
     )
 
 
-PLANNER_SYSTEM = """You are an expert AI Research Planner (Research Agent).
+PLANNER_SYSTEM = """You are a Planning Agent inside a LangGraph multi-agent research system.
 
-Your task is to analyze the user's query and design an optimal retrieval strategy.
+Your task is to decide whether retrieval is required and generate search queries.
 
-RULES:
-1. If the user is greeting, making small talk, or asking simple factual questions
-   that don't require documents → set needs_retrieval=false, empty search_queries.
-2. If the query requires facts, analysis, document knowledge, or research →
-   set needs_retrieval=true and generate 2–4 SPECIFIC search queries.
-3. Search queries must NOT be verbatim copies of the user query.
-   Each should explore a different angle (e.g. definitions, evidence, comparisons).
-4. Consider the conversation history to understand follow-up questions.
-5. Keep search queries concise and keyword-rich for vector store retrieval.
+CRITICAL REQUIREMENTS:
 
-Always respond in the specified structured JSON format."""
+1. Return ONLY valid JSON.
+2. Do NOT wrap JSON in markdown.
+3. Do NOT use ```json code fences.
+4. Do NOT include explanations before or after the JSON.
+5. Do NOT include comments.
+6. Output must be parseable by Python json.loads().
+7. Always return all required fields.
+
+Required schema:
+
+{
+"retrieval": true,
+"queries": ["query1", "query2"],
+"rationale": "reason"
+}
+
+Rules:
+
+* For educational, technical, programming, scientific, AI, machine learning, cloud, DevOps, data science, cybersecurity, research, framework, API, model, library, architecture, comparison, tutorial, guide, and explanatory questions:
+  retrieval = true
+
+* For greetings, casual chat, arithmetic, and personal opinions:
+  retrieval = false
+
+* When retrieval=true generate 3-5 search queries.
+
+Examples:
+
+Input:
+What is Python?
+
+Output:
+{"retrieval":true,"queries":["Python programming language overview","Python features and applications","Python programming examples"],"rationale":"Educational technical question requiring detailed context."}
+
+Input:
+Hello
+
+Output:
+{"retrieval":false,"queries":[],"rationale":"Greeting does not require retrieval."}
+
+Remember:
+Return ONLY JSON.
+No markdown.
+No code fences.
+No extra text."""
 
 
 async def planner_node(state: AgentState) -> dict:
@@ -104,12 +140,21 @@ async def planner_node(state: AgentState) -> dict:
 
     messages.append(HumanMessage(content=query))
 
-    response: ResearchPlan = await llm.ainvoke(messages)
-    plan = response.search_queries if response.needs_retrieval else []
+    try:
+        response: ResearchPlan = await llm.ainvoke(messages)
+        plan = response.queries if response.retrieval else []
+        rationale = response.rationale
+        retrieval = response.retrieval
+    except Exception as e:
+        logger.error(f"Planner LLM failed (API error): {e}")
+        # Graceful fallback if the API is overloaded (503)
+        plan = []
+        retrieval = False
+        rationale = "Fallback due to API high demand."
 
     logger.info(
-        f"[Research Agent] retrieval={response.needs_retrieval}, "
-        f"queries={len(plan)}, rationale='{response.rationale[:60]}'"
+        f"[Research Agent] retrieval={retrieval}, "
+        f"queries={len(plan)}, rationale='{rationale[:60]}'"
     )
 
     return {

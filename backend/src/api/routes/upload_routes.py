@@ -129,7 +129,7 @@ async def upload_document_stream(
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
-@router.get("/")
+@router.get("")
 async def list_documents(current_user=Depends(get_current_user)):
     from src.database.mongodb.repositories.document_repository import get_user_documents
     user_id = str(current_user["_id"])

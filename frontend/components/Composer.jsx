@@ -29,18 +29,6 @@ const MODES = [
     dotColor: "bg-amber-400",
   },
   {
-    id: "summary",
-    label: "Summary",
-    shortLabel: "Summary",
-    icon: BookOpen,
-    description: "Brief RAG summary without deep citation processing",
-    gradient: "from-sky-400 to-blue-500",
-    badge: "RAG-LITE",
-    badgeColor: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
-    ringColor: "ring-sky-400/30",
-    dotColor: "bg-sky-500",
-  },
-  {
     id: "research",
     label: "Deep",
     shortLabel: "Deep",
@@ -51,30 +39,6 @@ const MODES = [
     badgeColor: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
     ringColor: "ring-violet-400/30",
     dotColor: "bg-violet-500",
-  },
-  {
-    id: "competitive",
-    label: "Competitive",
-    shortLabel: "Compete",
-    icon: BrainCircuit,
-    description: "Cross-document comparison for competitive analysis",
-    gradient: "from-rose-400 to-red-500",
-    badge: "RAG-PRO",
-    badgeColor: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
-    ringColor: "ring-rose-400/30",
-    dotColor: "bg-rose-500",
-  },
-  {
-    id: "technical",
-    label: "Technical",
-    shortLabel: "Tech",
-    icon: Hexagon,
-    description: "Detailed technical analysis and code/data extraction",
-    gradient: "from-emerald-400 to-teal-500",
-    badge: "RAG-TECH",
-    badgeColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-    ringColor: "ring-emerald-400/30",
-    dotColor: "bg-emerald-500",
   },
 ];
 
@@ -319,7 +283,7 @@ const Composer = forwardRef(function Composer({ onSend, busy, defaultMode = "res
                     size="icon"
                     className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
                   >
-                    <Paperclip className="h-4 w-4" />
+                    <Plus className="h-5 w-5" />
                   </Button>
                 </TooltipTrigger>
               </ComposerActionsPopover>

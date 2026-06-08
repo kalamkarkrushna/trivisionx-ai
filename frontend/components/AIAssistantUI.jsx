@@ -63,10 +63,13 @@ export default function AIAssistantUI() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     try {
-      const raw = localStorage.getItem("sidebar-collapsed");
-      return raw
-        ? JSON.parse(raw)
-        : { pinned: true, recent: false, folders: true, templates: true };
+      if (typeof window !== "undefined") {
+        const raw = localStorage.getItem("sidebar-collapsed");
+        return raw
+          ? JSON.parse(raw)
+          : { pinned: true, recent: false, folders: true, templates: true };
+      }
+      return { pinned: true, recent: false, folders: true, templates: true };
     } catch {
       return { pinned: true, recent: false, folders: true, templates: true };
     }
@@ -79,8 +82,11 @@ export default function AIAssistantUI() {
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
-      const saved = localStorage.getItem("sidebar-collapsed-state");
-      return saved ? JSON.parse(saved) : false;
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem("sidebar-collapsed-state");
+        return saved ? JSON.parse(saved) : false;
+      }
+      return false;
     } catch {
       return false;
     }

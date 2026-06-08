@@ -40,7 +40,7 @@ def _serialize(doc: dict) -> dict:
     return doc
 
 
-@router.get("/", summary="List user conversations")
+@router.get("", summary="List user conversations")
 async def get_conversations(current_user=Depends(get_current_user)):
     user_id = str(current_user["_id"])
     convs = await _convs().find({"user_id": user_id}).sort("updated_at", -1).to_list(200)
@@ -62,7 +62,7 @@ async def get_conversations(current_user=Depends(get_current_user)):
     return result
 
 
-@router.post("/", status_code=201, summary="Create a new conversation")
+@router.post("", status_code=201, summary="Create a new conversation")
 async def create_conversation(
     conv: ConversationCreate,
     current_user=Depends(get_current_user),

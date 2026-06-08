@@ -6,6 +6,12 @@ Run with: python index.py  OR  uvicorn index:app --reload
 """
 import os
 import sys
+import warnings
+
+# Suppress harmless startup warnings from LangChain and third-party libraries
+warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*ClientResponse.json.*")
+warnings.filterwarnings("ignore", module="langgraph")
+warnings.filterwarnings("ignore", module="sentence_transformers")
 
 # Fix Windows cp1252 encoding — allows unicode chars in log output
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
@@ -48,4 +54,4 @@ if __name__ == "__main__":
     _free_port(PORT)
     print("Running uvicorn...")
     import uvicorn
-    uvicorn.run("index:app", host="0.0.0.0", port=PORT)
+    uvicorn.run("index:app")

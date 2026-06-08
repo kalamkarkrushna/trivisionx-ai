@@ -6,9 +6,6 @@ from langgraph.graph import StateGraph
 from src.core.logger import get_logger
 
 from .research_graph import build_research_graph
-from .summary_graph import build_summary_graph
-from .competitive_graph import build_competitive_graph
-from .technical_graph import build_technical_graph
 
 logger = get_logger(__name__)
 
@@ -25,15 +22,9 @@ def get_workflow_for_mode(mode: str) -> StateGraph:
 
     logger.info(f"Compiling LangGraph workflow for mode: {mode}")
 
-    if mode == "summary":
-        workflow = build_summary_graph()
-    elif mode == "competitive":
-        workflow = build_competitive_graph()
-    elif mode == "technical":
-        workflow = build_technical_graph()
-    else:
-        # Default is "research" (Deep)
-        workflow = build_research_graph()
+    # For both "simple" (Quick) and "research" (Deep) we route through the main research graph.
+    # The planner node will dynamically bypass retrieval for "simple" mode.
+    workflow = build_research_graph()
 
     _compiled_graphs[mode] = workflow
     return workflow

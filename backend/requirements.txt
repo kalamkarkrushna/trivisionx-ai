@@ -1,50 +1,38 @@
-# ── Core Framework ────────────────────────────────────────────────────────────
 fastapi
 uvicorn[standard]
 gunicorn
 python-multipart
 python-dotenv
 
-# ── Pydantic (settings + validation) ─────────────────────────────────────────
 pydantic[email]
 pydantic-settings
 
-# ── LangChain / LangGraph ─────────────────────────────────────────────────────
 langchain
 langchain-core
 langchain-community
 langchain-openai
 langchain-google-genai
+google-api-core
 langchain-pinecone
 langchain-text-splitters
 langgraph
 
-# ── Vector Store ──────────────────────────────────────────────────────────────
-pinecone-client
-
-# ── Database ──────────────────────────────────────────────────────────────────
+pinecone
 motor
 pymongo
 
-# ── Cache (optional — Redis) ──────────────────────────────────────────────────
-# Required only if REDIS_URL is set in .env; gracefully skipped otherwise
 redis[hiredis]
-
-# ── Auth / Security ───────────────────────────────────────────────────────────
 bcrypt
 python-jose[cryptography]
 
-# ── Document Loaders ──────────────────────────────────────────────────────────
+
 pypdf
 docx2txt
 
-# ── Token Counting ────────────────────────────────────────────────────────────
 tiktoken
 
-# ── Utilities ─────────────────────────────────────────────────────────────────
 httpx
-bson
 
-# ── Build Tools ───────────────────────────────────────────────────────────────
+
 setuptools
 wheel

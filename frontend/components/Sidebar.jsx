@@ -20,7 +20,6 @@ import FolderPopover from "./CreateFolderModal";
 import TemplatePopover from "./CreateTemplateModal";
 import SearchPopover from "./SearchModal";
 import SettingsPopover from "./SettingsPopover";
-import DocumentLibrary from "./DocumentLibrary";
 import { Database } from "lucide-react";
 import { cls } from "./utils";
 import { useState, useEffect, forwardRef } from "react";
@@ -88,9 +87,7 @@ function CollapsedSidebar({ setSidebarCollapsed, createNewChat, conversations, s
             <SearchIcon className="h-4 w-4" />
           </button>
         </SearchPopover>
-        <button title="Document Library" className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-zinc-400 transition-all hover:bg-white/10 hover:text-zinc-200 active:scale-95">
-          <Database className="h-4 w-4" />
-        </button>
+
         <button title="Templates" className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-zinc-400 transition-all hover:bg-white/10 hover:text-zinc-200 active:scale-95">
           <FileText className="h-4 w-4" />
         </button>
@@ -268,7 +265,6 @@ export default function Sidebar({
   const [templatesOpen, setTemplatesOpen] = useState(() => loadLS("sb_templates_open", true));
   const [expandedFolder, setExpandedFolder] = useState(null);
   const [collapsedGroups, setCollapsedGroups] = useState({});
-  const [isDocLibraryOpen, setIsDocLibraryOpen] = useState(false);
 
   useEffect(() => {
     const t = requestAnimationFrame(() => setMounted(true));
@@ -407,21 +403,6 @@ export default function Sidebar({
               </button>
             </div>
 
-            {/* ── DOCUMENT LIBRARY BUTTON ───────────────────────────────────── */}
-            <div className="px-2.5 pb-2 shrink-0">
-              <button
-                onClick={() => setIsDocLibraryOpen(true)}
-                aria-label="Document Library"
-                className="group relative flex w-full items-center gap-2.5 overflow-hidden rounded-xl border border-blue-200/50 bg-blue-50/50 px-3 py-2 text-left transition-all duration-200 hover:border-blue-300 hover:bg-blue-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/50 dark:border-blue-900/30 dark:bg-blue-900/10 dark:hover:border-blue-800/50 dark:hover:bg-blue-900/20"
-              >
-                <div className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-100 text-blue-600 shadow-sm shrink-0 dark:bg-blue-500/20 dark:text-blue-400">
-                  <Database className="h-3 w-3" />
-                </div>
-                <span className="text-[13px] font-semibold text-blue-700 dark:text-blue-300 transition-colors flex-1">
-                  Document Library
-                </span>
-              </button>
-            </div>
 
             {/* ── SEARCH ─────────────────────────────────────────────────── */}
             <div className="px-2.5 pb-2 shrink-0">
@@ -626,7 +607,6 @@ export default function Sidebar({
           </motion.aside>
         )}
       </AnimatePresence>
-      <DocumentLibrary open={isDocLibraryOpen} onClose={() => setIsDocLibraryOpen(false)} />
     </>
   );
 }
