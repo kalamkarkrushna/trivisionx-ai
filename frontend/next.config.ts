@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  // output: "standalone", // Uncomment to enable standalone mode for Docker
+  output: "standalone", // Uncomment to enable standalone mode for Docker
   turbopack: {
     root: path.resolve(__dirname),
   },

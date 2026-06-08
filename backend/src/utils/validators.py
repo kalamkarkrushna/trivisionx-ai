@@ -20,8 +20,3 @@ def validate_file(filename: str, size_bytes: int) -> None:
         raise UploadException(
             f"File size {mb:.1f} MB exceeds the {MAX_FILE_SIZE_BYTES // (1024*1024)} MB limit"
         )
-
-
-def sanitize_query(text: str, max_length: int = 2000) -> str:
-    """Trim and clean a user query string."""
-    return text.strip()[:max_length]

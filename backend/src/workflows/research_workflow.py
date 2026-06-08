@@ -2,10 +2,7 @@
 src/workflows/research_workflow.py — LangGraph workflow registry
 ================================================================
 Provides workflow metadata, node descriptions, and configuration
-for introspection, monitoring, and API documentation.
-
-Import get_workflow_info() anywhere you need to describe the active pipeline.
-"""
+for introspection, monitoring, and API documentation."""
 from typing import Dict, Any, List
 from src.core.config import settings
 
@@ -91,27 +88,3 @@ WORKFLOW_EDGES = [
     {"from": "summarizer", "to": "reporter",    "condition": None},
     {"from": "reporter",   "to": "END",         "condition": None},
 ]
-
-
-def get_workflow_info() -> Dict[str, Any]:
-    """
-    Returns complete LangGraph workflow metadata for API documentation,
-    monitoring dashboards, and admin panels.
-    """
-    return {
-        "name": "AI Research Copilot — 5-Agent Pipeline",
-        "framework": "LangGraph",
-        "version": settings.VERSION,
-        "entry_point": "planner",
-        "nodes": WORKFLOW_NODES,
-        "edges": WORKFLOW_EDGES,
-        "streaming": "Server-Sent Events (SSE) via graph.astream_events(version='v2')",
-        "state_schema": "AgentState (TypedDict with add_messages reducer)",
-        "memory": "MongoDB conversation history (last 10 turns injected at runtime)",
-        "retrieval": "Pinecone MMR with user-scoped metadata filtering",
-    }
-
-
-def get_node_names() -> List[str]:
-    """Returns ordered list of node names in workflow execution order."""
-    return [n["id"] for n in WORKFLOW_NODES]

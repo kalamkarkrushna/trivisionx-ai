@@ -15,32 +15,15 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: ai-research-copilot-backend
-    restart: unless-stopped
+    restart: always
     ports:
       - "8000:8000"
     volumes:
       - backend_data:/app/data
+    env_file:
+      - ./backend/.env
     environment:
       - PORT=8000
-      # ── AI ────────────────────────────────────────────────────────────────
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
-      # ── Vector DB ─────────────────────────────────────────────────────────
-      - PINECONE_API_KEY=${PINECONE_API_KEY}
-      - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME:-trishul-ui}
-      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT:-us-east-1}
-      # ── Database ──────────────────────────────────────────────────────────
-      - MONGODB_URL=${MONGODB_URL}
-      - DATABASE_NAME=${DATABASE_NAME:-trishul_db}
-      # ── Auth ──────────────────────────────────────────────────────────────
-      - SECRET_KEY=${SECRET_KEY}
-      - ALGORITHM=HS256
-      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
-      # ── App ───────────────────────────────────────────────────────────────
-      - FRONTEND_URL=http://localhost:3000
-      - DEBUG=false
-      # ── Cache (optional) ──────────────────────────────────────────────────
-      - REDIS_URL=${REDIS_URL:-}
     networks:
       - copilot-network
     healthcheck:
@@ -49,6 +32,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ── Next.js Frontend ──────────────────────────────────────────────────────
   frontend:
@@ -56,9 +44,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: ai-research-copilot-frontend
-    restart: unless-stopped
+    restart: always
     ports:
       - "3000:3000"
+    env_file:
+      - ./frontend/.env
     environment:
       - PORT=3000
       - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
@@ -67,3 +57,8 @@ services:
         condition: service_healthy
     networks:
       - copilot-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

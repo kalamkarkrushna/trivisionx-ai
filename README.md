@@ -1,312 +1,186 @@
-<p align="center">
+<div align="center">
   <img src="docs/screenshots/logo-placeholder.png" alt="AI Research Copilot" width="120" />
-</p>
 
-<h1 align="center">AI Research Copilot Platform</h1>
+  <h1>🚀 AI Research Copilot Platform</h1>
 
-<p align="center">
-  <strong>Enterprise-grade AI research automation with LangGraph multi-agent orchestration,<br/>
-  Pinecone semantic retrieval, and real-time streaming responses.</strong>
-</p>
+  <p>
+    <strong>Enterprise-grade AI research automation with LangGraph multi-agent orchestration,<br/>
+    Pinecone semantic retrieval, and real-time streaming responses.</strong>
+  </p>
 
-<p align="center">
-  <a href="#architecture">Architecture</a> ·
-  <a href="#features">Features</a> ·
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="#api">API</a> ·
-  <a href="#deployment">Deployment</a> ·
-  <a href="#technology-evaluation">Tech Evaluation</a>
-</p>
+  <p>
+    <a href="#architecture">Architecture</a> ·
+    <a href="#features">Features</a> ·
+    <a href="#quick-start">Quick Start</a> ·
+    <a href="#api">API</a> ·
+    <a href="#deployment">Deployment</a>
+  </p>
 
-<p align="center">
-  <img alt="Python" src="https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white" />
-  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white" />
-  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" />
-  <img alt="React" src="https://img.shields.io/badge/React-19-blue?logo=react" />
-  <img alt="LangGraph" src="https://img.shields.io/badge/LangGraph-Multi--Agent-purple" />
-  <img alt="Pinecone" src="https://img.shields.io/badge/Pinecone-Vector%20DB-teal" />
-  <img alt="MongoDB" src="https://img.shields.io/badge/MongoDB-Atlas-green?logo=mongodb" />
-  <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-blue?logo=docker" />
-</p>
+  <p>
+    <img alt="Python" src="https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python&logoColor=white" />
+    <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
+    <img alt="Next.js" src="https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&logo=next.js" />
+    <img alt="React" src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" />
+    <img alt="Docker" src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
+  </p>
+</div>
 
 ---
 
-## Overview
+## 🌟 Overview
 
-The **AI Research Copilot** is a production-grade AI SaaS platform that transforms how researchers and knowledge workers interact with document corpora. It combines a **5-node LangGraph multi-agent pipeline** with **Pinecone MMR semantic retrieval**, **real-time SSE streaming**, and **citation-aware responses** to deliver an enterprise AI research assistant.
+The **AI Research Copilot** is a production-ready AI SaaS platform that transforms how researchers and knowledge workers interact with document corpora. It brings together a **5-node LangGraph multi-agent pipeline**, **Pinecone MMR semantic retrieval**, **real-time SSE streaming**, and **citation-aware generation** to deliver an enterprise AI assistant.
 
-> *Built as a demonstration of advanced AI systems engineering — suitable for production deployment and AI engineering evaluations.*
-
----
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  Next.js 16 · React 19 · Tailwind CSS 4 · Framer Motion         │
-│  Chat UI · Document Workspace · Dashboard · Citations Panel      │
-└───────────────────────────┬──────────────────────────────────────┘
-                            │ HTTPS + Server-Sent Events
-                            ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  FastAPI Gateway  (Python 3.11, async, JWT, rate-limited)       │
-│                                                                  │
-│  /api/chat/ ─────► LangGraph 5-Agent Pipeline (SSE stream)     │
-│  /api/documents/ ─► Ingestion Pipeline (chunk→embed→index)     │
-│  /api/reports/ ──► Report Generation + Markdown Export         │
-│  /api/models/ ───► Configuration Introspection                  │
-│  /api/health/ ───► Dependency Status + Latency                  │
-└──────────┬───────────────────────────────────────┬──────────────┘
-           │                                        │
-           ▼                                        ▼
-┌────────────────────────┐            ┌──────────────────────────┐
-│  LANGGRAPH PIPELINE    │            │  MongoDB Atlas (Motor)   │
-│                        │            │                          │
-│  1. Planner Agent      │            │  users, conversations,   │
-│  2. Retrieval Agent    │            │  messages, documents,    │
-│  3. Citation Agent     │            │  reports                 │
-│  4. Summarizer Agent   │            └──────────────────────────┘
-│  5. Report Agent       │
-└──────────┬─────────────┘            ┌──────────────────────────┐
-           │                          │  Redis Cache (optional)  │
-           ▼                          │  RAG result caching      │
-┌────────────────────────┐            │  TTL: 1 hour             │
-│  Pinecone Vector Store │            └──────────────────────────┘
-│  MMR retrieval         │
-│  User-scoped filtering │
-│  384-dim cosine index  │
-└────────────────────────┘
-```
-
-### LangGraph Multi-Agent Workflow
-
-Defined in `backend/src/workflows/research_workflow.py`.
-
-```
-User Query → [Planner] → conditional routing
-                │
-      ┌─────────┴──────────┐
-      │ needs docs?        │ direct answer
-      ▼ YES                ▼ NO
-  [Retriever]         [Summarizer]
-  Pinecone MMR             │
-      │                    │
-  [Citation]               │
-  dedup + score            │
-      │                    │
-      └──────────┬─────────┘
-                 ▼
-          [Summarizer]
-          Gemini Flash + history
-                 │
-                 ▼
-           [Reporter]
-           Final markdown + refs
-                 │
-                 ▼
-          SSE → Frontend
-```
+> *Built to demonstrate advanced AI systems engineering—suitable for production deployment and seamless scalability.*
 
 ---
 
-## Features
+## 🏗️ Architecture
 
-### AI Research Capabilities
-- **5-Agent LangGraph Pipeline** — planner, retriever, citation, summarizer, reporter
-- **Real-time SSE Streaming** — token-level streaming via `graph.astream_events`
-- **Agent Activity Panel** — live visibility into which agent is running
-- **Citation-Aware Responses** — every claim traced to source document + page + confidence score
-- **Conversation Memory** — last 10 turns injected into agent context
-- **Research Report Generation** — structured 5-section reports with references
+```mermaid
+graph TD
+    UI[Next.js 16 Chat UI] -- HTTPS + SSE --> API[FastAPI Gateway]
+    API -- /api/documents --> DB[(MongoDB Atlas)]
+    API -- /api/chat --> Graph[LangGraph 5-Agent Pipeline]
+    
+    subgraph LangGraph Pipeline
+        Planner --> Retriever
+        Retriever --> Citation
+        Citation --> Summarizer
+        Summarizer --> Reporter
+    end
+    
+    Retriever -- MMR Search --> PC[(Pinecone Vector DB)]
+```
 
-### Enterprise Document Intelligence
-- **PDF, DOCX, TXT** ingestion with text cleaning
-- **Semantic Chunking** — paragraph-aware + recursive splitting (2-stage)
-- **Duplicate Detection** — filename+user_id guard prevents re-indexing
-- **Metadata-Rich Vectors** — user_id, filename, chunk_index, uploaded_at
-- **MMR Retrieval** — Maximal Marginal Relevance for diverse, relevant results
-
-### Production-Grade Backend
-- **JWT Authentication** — register, login, profile management
-- **Prompt Injection Guard** — scans and sanitizes all user inputs
-- **Rate Limiting** — per-route configurable limits
-- **Async MongoDB** — Motor driver with optimized compound indexes
-- **Redis Caching** — optional embedding/RAG result cache
-- **Multi-stage Docker** — non-root user, gunicorn + uvicorn workers
-- **OpenAPI Docs** — auto-generated at `/docs` and `/redoc`
+### 🧠 LangGraph Multi-Agent Workflow
+1. **Planner Agent**: Analyzes the query and routes it.
+2. **Retrieval Agent**: Fetches context using Pinecone MMR.
+3. **Citation Agent**: Deduplicates, scores, and injects references.
+4. **Summarizer Agent**: Generates accurate summaries using Gemini 2.5 Flash.
+5. **Reporter Agent**: Compiles Markdown with rich formatting and references.
 
 ---
 
-## Quick Start
+## ✨ Features
+
+### 🔬 AI Research Capabilities
+- **5-Agent Pipeline** — specialized LangGraph nodes for reliable outputs.
+- **Real-time SSE Streaming** — token-level streaming directly to the UI.
+- **Citation-Aware** — every claim is traced back to a specific source document + page.
+- **Research Reports** — generates structured 5-section reports exportable to Markdown.
+
+### 📚 Enterprise Document Intelligence
+- **Multi-format Ingestion** — native support for PDF, DOCX, and TXT files.
+- **Semantic Chunking** — paragraph-aware recursive splitting.
+- **Metadata-Rich Vectors** — tagged with `user_id`, `filename`, `chunk_index`, and `timestamp`.
+- **Duplicate Prevention** — guards against re-indexing identical documents per user.
+
+### 🏭 Production-Grade Backend
+- **JWT Authentication** — secure registration, login, and profile management.
+- **Rate Limiting** — customizable limits per endpoint.
+- **Async Architecture** — built entirely on Motor (MongoDB async) and FastAPI.
+- **Multi-stage Docker Builds** — non-root users, gunicorn workers, and optimized images.
+
+---
+
+## 🚀 Quick Start (Docker Compose)
+
+The easiest way to get started is using the pre-configured `docker-compose.yml`.
 
 ### Prerequisites
 - Docker & Docker Compose
-- Google AI Studio API key (Gemini)
-- Pinecone account (free tier)
-- MongoDB Atlas account (free tier)
+- Google AI Studio API Key (Gemini)
+- Pinecone Account (Free Tier)
+- MongoDB Atlas URL (Free Tier)
 
-### 1. Clone
-
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/your-org/ai-research-copilot
 cd ai-research-copilot
 ```
 
-### 2. Configure
-
-```bash
-cat > .env << 'EOF'
+### 2. Configure Environment Variables
+Create a `.env` file in the root of the project:
+```env
+# AI Providers
 GOOGLE_API_KEY=your_gemini_key_here
+GEMINI_MODEL=gemini-2.5-flash
+
+# Vector DB
 PINECONE_API_KEY=your_pinecone_key_here
 PINECONE_INDEX_NAME=trishul-ui
+PINECONE_ENVIRONMENT=us-east-1
+
+# Database
 MONGODB_URL=mongodb+srv://user:pass@cluster.mongodb.net/
 DATABASE_NAME=trishul_db
+
+# Security & App
 SECRET_KEY=your-secret-256bit-key-here
 FRONTEND_URL=http://localhost:3000
-EOF
 ```
 
-### 3. Start
-
+### 3. Spin Up the Stack
 ```bash
-docker compose up --build
+docker-compose up --build -d
 ```
 
-### 4. Open
-
+### 4. Access the Application
 | Service | URL |
 |---|---|
-| **App** | http://localhost:3000 |
-| **API Docs** | http://localhost:8000/docs |
-| **Health** | http://localhost:8000/api/health/ |
+| **Web App** | [http://localhost:3000](http://localhost:3000) |
+| **API Docs (Swagger)** | [http://localhost:8000/docs](http://localhost:8000/docs) |
+| **System Health** | [http://localhost:8000/api/health/](http://localhost:8000/api/health/) |
 
 ---
 
-## API
+## ☁️ Deployment
+
+This project is built to deploy natively to the cloud using robust CI/CD integration.
+
+### Vercel (Frontend)
+The Next.js frontend is optimized for **Vercel**.
+1. Import the project into Vercel.
+2. Select `frontend` as your Root Directory.
+3. The included `vercel.json` will automatically proxy `/api/*` requests to your backend.
+
+### Render (Backend)
+The FastAPI backend is pre-configured for **Render**.
+1. Create a new Web Service on Render and point it to your repository.
+2. The included `render.yaml` blueprint will handle the build and deployment automatically.
+3. Add your secrets (`MONGODB_URL`, `GOOGLE_API_KEY`, etc.) in the Render dashboard.
+
+---
+
+## 📖 API Reference
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/auth/register` | Create account |
 | `POST` | `/api/auth/login` | Get JWT token |
-| `GET` | `/api/auth/me` | Current user profile |
 | `POST` | `/api/chat/` | **SSE** streaming research chat |
 | `POST` | `/api/documents/upload` | Ingest PDF/DOCX/TXT |
-| `GET` | `/api/documents/` | List user documents |
-| `POST` | `/api/reports/generate` | Generate research report |
-| `GET` | `/api/reports/history` | Report history |
 | `GET` | `/api/reports/{id}/export` | Download report as Markdown |
-| `GET` | `/api/research-sessions` | Research session history |
-| `GET` | `/api/conversations/` | List conversations |
-| `POST` | `/api/conversations/` | Create conversation |
-| `DELETE` | `/api/conversations/{id}` | Delete conversation |
-| `GET` | `/api/models/` | AI model configuration |
-| `GET` | `/api/health/` | System health + dependencies |
 
-Full reference: [`docs/api/API_REFERENCE.md`](docs/api/API_REFERENCE.md)
+*For the complete API reference, visit the auto-generated Swagger UI at `/docs` when running the backend.*
 
 ---
 
-## Technology Stack
+## 🛠️ Technology Stack
 
-| Layer | Technology | Rationale |
-|---|---|---|
-| **LLM** | Google Gemini Flash | Fast, cost-effective, 1M context, strong reasoning |
-| **Agent Orchestration** | LangGraph | Graph-based state machine, conditional routing, `astream_events` |
-| **Vector DB** | Pinecone | Managed, serverless, MMR support, metadata filtering |
-| **Embeddings** | HuggingFace MiniLM-L12 | 384-dim, high quality, runs locally (no API cost) |
-| **Backend** | FastAPI + Python 3.11 | Async-first, OpenAPI docs, high throughput, entrypoint `index.py` |
-| **Database** | MongoDB Atlas (Motor) | Flexible schema, async driver, free tier |
-| **Cache** | Redis (optional) | RAG result caching, TTL-based invalidation |
-| **Frontend** | Next.js 16 + React 19 + Tailwind 4 | App Router (`app/dashboard`, `app/login`, etc.), SSE support |
-| **Streaming** | Server-Sent Events | Simple, HTTP-compatible, no WebSocket overhead |
-| **Auth** | JWT (python-jose) | Stateless, scalable, 24h expiry |
-| **Deployment** | Docker | Container-based, cloud-native |
-
----
-
-## Project Structure
-
-```
-ai-research-copilot/
-├── backend/                     # FastAPI backend
-│   ├── src/
-│   │   ├── workflows/           # research_workflow.py (LangGraph workflow registry)
-│   │   ├── agents/langgraph/    # 5-node LangGraph pipeline nodes
-│   │   │   ├── planner_node.py  # Planner agent logic
-│   │   │   ├── retriever_node.py# Retrieval agent logic
-│   │   │   ├── citation_node.py # Citation scoring logic
-│   │   │   ├── summarizer_node.py
-│   │   │   └── report_node.py   
-│   │   ├── api/                 # FastAPI route handlers
-│   │   ├── rag/                 # RAG pipeline (loaders, chunking, vectorstores)
-│   │   ├── database/            # MongoDB setup, models
-│   │   ├── services/            # Core business logic
-│   │   └── core/                # Configuration and security setup
-│   ├── tests/                   # Pytest test suite
-│   ├── index.py                 # Uvicorn entry point (runs src.main:create_app)
-│   └── requirements.txt         # Python dependencies
-├── frontend/                    # Next.js frontend application
-│   ├── app/                     # App router pages (dashboard, login, signup, setting)
-│   ├── components/              # React UI components 
-│   ├── hooks/                   # Custom React hooks
-│   ├── lib/                     # API clients and utilities
-│   └── package.json             # NPM / Bun dependencies
-├── docs/                        # Architecture and deployment documentation
-├── workflows/                   # n8n workflow automation scripts
-├── docker-compose.yml           # One-command full-stack deployment
-└── README.md                    # Project overview
-```
-
----
-
-## Setup (Local Development)
-
-### Backend
-The backend uses standard `pip` or modern Python package managers like `uv`.
-```bash
-cd backend
-python -m venv .venv
-# Activate virtual environment
-# Windows: .venv\Scripts\activate
-# Mac/Linux: source .venv/bin/activate
-
-pip install -r requirements.txt
-# Alternatively, use uv: uv pip install -r requirements.txt
-
-# Start the development server
-python index.py
-```
-
-### Frontend
-The frontend uses standard NPM, though `bun` is also supported.
-```bash
-cd frontend
-npm install
-# Alternatively: bun install
-
-echo "NEXT_PUBLIC_API_BASE_URL=http://localhost:8000" > .env.local
-npm run dev
-# Or: bun run dev
-```
-
----
-
-## Documentation
-
-| Document | Description |
+| Layer | Technology |
 |---|---|
-| [Architecture](docs/architecture/ARCHITECTURE.md) | System design, LangGraph topology, MongoDB schema, Pinecone design |
-| [API Reference](docs/api/API_REFERENCE.md) | All endpoints, request/response schemas, SSE event protocol |
-| [Deployment Guide](docs/deployment/DEPLOYMENT.md) | Docker, local dev, cloud deployment, production checklist |
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE)
+| **LLM** | Google Gemini 2.5 Flash |
+| **Orchestration** | LangGraph |
+| **Vector DB** | Pinecone |
+| **Backend** | FastAPI (Python 3.11) |
+| **Database** | MongoDB Atlas (Motor) |
+| **Frontend** | Next.js 16 + React 19 + Tailwind CSS 4 |
+| **Deployment** | Docker Compose |
 
 ---
 
 <p align="center">
-  Built with ❤️ using LangGraph · Pinecone · Google Gemini · FastAPI · Next.js 16
+  Released under the <a href="LICENSE">MIT License</a>.<br/>
+  Built with ❤️ using LangGraph, Pinecone, Google Gemini, and Next.js.
 </p>
