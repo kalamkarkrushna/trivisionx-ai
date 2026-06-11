@@ -91,7 +91,7 @@ export default function Message({ role, content, sources, quality_score, childre
       >
         {content !== undefined ? (
           isUser ? (
-            <span className="whitespace-pre-wrap break-words">{content}</span>
+            <span className="whitespace-pre-wrap break-words">{typeof content === 'string' ? content : JSON.stringify(content)}</span>
           ) : (
             <div className="prose prose-sm dark:prose-invert max-w-none break-words prose-p:my-2 prose-p:leading-relaxed prose-headings:font-semibold prose-headings:tracking-tight prose-li:my-0.5 prose-code:rounded-md prose-code:bg-zinc-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-zinc-800 prose-code:font-mono prose-code:text-[12px] dark:prose-code:bg-zinc-800 dark:prose-code:text-zinc-200 prose-pre:my-0 prose-pre:p-0 prose-pre:bg-transparent prose-pre:shadow-none prose-blockquote:border-l-zinc-300 dark:prose-blockquote:border-l-zinc-600 prose-blockquote:text-zinc-500 dark:prose-blockquote:text-zinc-400 prose-table:text-[13px]">
               <ReactMarkdown
@@ -117,7 +117,7 @@ export default function Message({ role, content, sources, quality_score, childre
                     ),
                 }}
               >
-                {content}
+                {typeof content === 'string' ? content : JSON.stringify(content, null, 2)}
               </ReactMarkdown>
 
               {/* Citations Panel */}

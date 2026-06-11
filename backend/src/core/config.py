@@ -13,34 +13,63 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "AI Research Copilot"
     VERSION: str = "3.0.0"
     DEBUG: bool = False
+    DEFAULT_LLM_PROVIDER: str = "google"
 
     # ── MongoDB ───────────────────────────────────────────────────────────────
     MONGODB_URL: str = "mongodb://localhost:27017"
     DATABASE_NAME: str = "trishul_ai"
 
-    # Aliases kept for backward compat with old env var names
     @property
-    def MONGO_URI(self) -> str:  # noqa: N802
+    def MONGO_URI(self) -> str:
         return self.MONGODB_URL
 
     @property
-    def MONGO_DB_NAME(self) -> str:  # noqa: N802
+    def MONGO_DB_NAME(self) -> str:
         return self.DATABASE_NAME
 
     # ── Security / JWT ────────────────────────────────────────────────────────
     SECRET_KEY: str = "fallback-secret-change-in-production"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 h
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
     # ── Pinecone ──────────────────────────────────────────────────────────────
     PINECONE_API_KEY: str = ""
     PINECONE_INDEX_NAME: str = "trishul-ui"
     PINECONE_ENVIRONMENT: str = "us-east-1"
 
+    # ── OpenAI ────────────────────────────────────────────────────────────────
+    OPENAI_API_KEY: str = ""
+    OPENAI_CHAT_MODEL: str = "gpt-4o-mini"
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
 
-    # ── Google / Gemini fallback ──────────────────────────────────────────────
+    # ── Anthropic ─────────────────────────────────────────────────────────────
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_CHAT_MODEL: str = "claude-sonnet-4-20250514"
+
+    # ── Google / Gemini ───────────────────────────────────────────────────────
     GOOGLE_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
+
+    # ── Groq ──────────────────────────────────────────────────────────────────
+    GROQ_API_KEY: str = ""
+    GROQ_CHAT_MODEL: str = "llama-3.3-70b-versatile"
+
+    # ── Mistral ───────────────────────────────────────────────────────────────
+    MISTRAL_API_KEY: str = ""
+    MISTRAL_CHAT_MODEL: str = "mistral-large-latest"
+
+    # ── Ollama (local) ────────────────────────────────────────────────────────
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_CHAT_MODEL: str = "llama3"
+
+    # ── DeepSeek ──────────────────────────────────────────────────────────────
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_CHAT_MODEL: str = "deepseek-chat"
+
+    # ── Embedding model ───────────────────────────────────────────────────────
+    EMBEDDING_PROVIDER: str = "google"
+    EMBEDDING_MODEL: str = "models/gemini-embedding-001"
+    EMBEDDING_DIMENSION: int = 384
 
     # ── Frontend ──────────────────────────────────────────────────────────────
     FRONTEND_URL: str = "http://localhost:3000"
@@ -54,14 +83,13 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_MINUTE: int = 60
 
     # ── Redis (optional) ──────────────────────────────────────────────────────
-    # Leave empty to disable caching entirely (graceful fallback)
     REDIS_URL: str = ""
-    REDIS_TTL_SECONDS: int = 3600  # 1 hour
+    REDIS_TTL_SECONDS: int = 3600
 
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
-        "extra": "ignore",           # ignore unknown env vars
+        "extra": "ignore",
         "case_sensitive": False,
     }
 

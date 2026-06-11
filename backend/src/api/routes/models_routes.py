@@ -1,37 +1,53 @@
 """
-src/api/routes/models_routes.py — Available AI models and RAG configuration
-===========================================================================
-GET /api/models  — returns all configured LLM models, embeddings, and
-                   current RAG pipeline settings. Used by the frontend
-                   settings panel and external integrations.
+src/api/routes/models_routes.py — Available AI models and configuration
+========================================================================
+GET /api/models  — returns all configured LLM providers, models, embeddings,
+                   workflow types, and RAG settings. Used by the frontend
+                   settings panel for model/provider selection.
 """
 from fastapi import APIRouter
 from src.core.config import settings
+from src.core.llm_factory import get_available_providers
+from src.core.constants import WORKFLOW_TYPES, DEFAULT_MODEL_MAP
+from src.workflows.research_workflow import get_all_workflows
+from src.core.logger import get_logger
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
-@router.get("/", summary="List available AI models and RAG configuration")
+@router.get("/", summary="List available AI models, providers, and workflows")
 async def get_models():
     """
     GET /api/models/
 
-    Returns the active LLM, embedding model, and RAG configuration so the
-    frontend settings panel and external tools can reflect the live state.
+    Returns available LLM providers, their configuration status,
+    all workflow types, embedding config, and current RAG settings.
     """
+    available_providers = get_available_providers()
+    configured_providers = {
+        k: v for k, v in available_providers.items() if v
+    }
+
+    default_provider = (
+        settings.DEFAULT_LLM_PROVIDER
+        if available_providers.get(settings.DEFAULT_LLM_PROVIDER)
+        else next(iter(configured_providers), settings.DEFAULT_LLM_PROVIDER)
+    )
+
     return {
         "llm": {
-            "provider": "Google Gemini",
-            "chat_model": settings.GEMINI_MODEL,
-            "planning_model": settings.GEMINI_MODEL,
-            "temperature": 0.2,
+            "default_provider": default_provider,
+            "default_model": DEFAULT_MODEL_MAP.get(default_provider, ""),
+            "available_providers": available_providers,
+            "configured_providers": list(configured_providers.keys()),
+            "models": DEFAULT_MODEL_MAP,
             "streaming": True,
         },
         "embeddings": {
-            "provider": "HuggingFace",
-            "model": "sentence-transformers/all-MiniLM-L12-v2",
-            "dimensions": 384,
-            "batch_size": 32,
+            "provider": settings.EMBEDDING_PROVIDER,
+            "model": settings.EMBEDDING_MODEL,
+            "dimensions": settings.EMBEDDING_DIMENSION,
         },
         "rag": {
             "chunk_size": settings.CHUNK_SIZE,
@@ -39,7 +55,6 @@ async def get_models():
             "retrieval_top_k": settings.RETRIEVAL_TOP_K,
             "retrieval_strategy": "MMR (Maximal Marginal Relevance)",
             "mmr_lambda": 0.6,
-            "context_compression": True,
         },
         "vector_store": {
             "provider": "Pinecone",
@@ -47,38 +62,11 @@ async def get_models():
             "environment": settings.PINECONE_ENVIRONMENT,
             "metric": "cosine",
         },
-        "agents": [
-            {
-                "name": "Research Planner",
-                "node": "planner",
-                "role": "Analyzes query intent and generates targeted search strategy",
-                "model": settings.GEMINI_MODEL,
-            },
-            {
-                "name": "Retrieval Agent",
-                "node": "retriever",
-                "role": "Queries Pinecone with MMR for diverse, relevant document chunks",
-                "model": "Pinecone semantic search",
-            },
-            {
-                "name": "Citation Agent",
-                "node": "citation",
-                "role": "De-duplicates and confidence-scores source references",
-                "model": "deterministic",
-            },
-            {
-                "name": "Summarization Agent",
-                "node": "summarizer",
-                "role": "Synthesizes retrieved context into cited markdown answers",
-                "model": settings.GEMINI_MODEL,
-            },
-            {
-                "name": "Report Agent",
-                "node": "reporter",
-                "role": "Assembles final output with formatted citations section",
-                "model": "deterministic",
-            },
-        ],
-        "pipeline": "LangGraph 5-node multi-agent research workflow",
+        "workflows": get_all_workflows(),
+        "modes": {
+            "quick": "Direct LLM call — fastest response, no agent orchestration",
+            "agent": "Full LangGraph multi-agent pipeline with retrieval, citations, and structured output",
+        },
+        "pipeline": "LangGraph multi-workflow multi-agent system",
         "version": settings.VERSION,
     }

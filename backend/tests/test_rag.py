@@ -172,19 +172,50 @@ class TestWorkflowRegistry:
     """Validate the workflow metadata registry."""
 
     def test_workflow_info_structure(self):
-        from src.workflows.research_workflow import get_workflow_info, get_node_names
+        from src.workflows.research_workflow import get_workflow_info
 
-        info = get_workflow_info()
+        info = get_workflow_info("research")
+        assert "type" in info
+        assert "definition" in info
         assert "nodes" in info
         assert "edges" in info
-        assert "entry_point" in info
-        assert info["entry_point"] == "planner"
+        assert info["type"] == "research"
+        assert info["definition"]["nodes"][0] == "planner"
 
     def test_node_names_order(self):
         from src.workflows.research_workflow import get_node_names
 
-        names = get_node_names()
+        names = get_node_names("research")
         assert names[0] == "planner"
         assert "retriever" in names
         assert "summarizer" in names
         assert names[-1] == "reporter"
+
+    def test_coding_workflow_nodes(self):
+        from src.workflows.research_workflow import get_node_names
+
+        names = get_node_names("coding")
+        assert names[0] == "planner"
+        assert "code_generation" in names
+        assert "code_review" in names
+        assert "testing" in names
+        assert names[-1] == "reporter"
+
+    def test_data_analysis_workflow_nodes(self):
+        from src.workflows.research_workflow import get_node_names
+
+        names = get_node_names("data_analysis")
+        assert names[0] == "planner"
+        assert "data_analysis" in names
+        assert names[-1] == "reporter"
+
+    def test_all_workflows_includes_new_types(self):
+        from src.workflows.research_workflow import get_all_workflows
+
+        workflows = get_all_workflows()
+        assert "research" in workflows
+        assert "coding" in workflows
+        assert "data_analysis" in workflows
+        assert "summary" in workflows
+        assert "technical" in workflows
+        assert "competitive" in workflows

@@ -1,12 +1,8 @@
 """
 src/agents/langgraph/nodes/citation_node.py — Citation Agent
 ============================================================
-Corresponds to "Citation agent" in the image workflow.
-
-Responsibilities:
-  - De-duplicate citations by doc_id (content hash)
-  - Apply confidence scoring based on retrieval rank
-  - Ensure consistent citation structure for the frontend panel
+De-duplicates citations by doc_id, applies confidence scoring,
+and ensures consistent citation structure for the frontend.
 """
 from src.agents.langgraph.state import AgentState
 from src.core.logger import get_logger
@@ -17,15 +13,18 @@ logger = get_logger(__name__)
 def citation_node(state: AgentState) -> dict:
     """
     Citation Agent — enriches, deduplicates, and ranks citation metadata.
-
-    Priority: uses citations already built by the Retrieval Agent (with doc_id
-    hashes). Falls back to extracting from raw docs if citations are empty.
+    Respects workflow_type: coding and data_analysis skip citation processing.
     """
+    workflow_type = state.get("workflow_type", "research")
+
+    # Coding and data_analysis workflows don't need citations
+    if workflow_type in ("coding", "data_analysis"):
+        return {"citations": [], "current_node": "citation"}
+
     existing_citations = state.get("citations", [])
     docs = state.get("retrieved_docs", [])
 
     if existing_citations:
-        # Deduplicate by doc_id (content hash — set by retriever_node)
         seen_ids: set = set()
         enriched: list = []
         for cit in existing_citations:
@@ -41,12 +40,12 @@ def citation_node(state: AgentState) -> dict:
             })
 
         logger.info(
-            f"[Citation Agent] {len(enriched)} citations "
-            f"(from {len(existing_citations)} raw, {len(existing_citations) - len(enriched)} dupes removed)"
+            f"[Citation] {len(enriched)} citations "
+            f"({len(existing_citations) - len(enriched)} dupes removed)"
         )
         return {"citations": enriched, "current_node": "citation"}
 
-    # Fallback: extract citations from raw docs
+    # Fallback: extract from raw docs
     citations: list = []
     seen: set = set()
     for i, doc in enumerate(docs):
@@ -74,5 +73,5 @@ def citation_node(state: AgentState) -> dict:
             "confidence": round(max(0.95 - (rank - 1) * 0.05, 0.50), 2),
         })
 
-    logger.info(f"[Citation Agent] Generated {len(citations)} citations from docs (fallback path)")
+    logger.info(f"[Citation] Generated {len(citations)} citations (fallback)")
     return {"citations": citations, "current_node": "citation"}

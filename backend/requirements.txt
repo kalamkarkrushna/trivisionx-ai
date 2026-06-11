@@ -15,6 +15,13 @@ langchain-pinecone
 langchain-text-splitters
 langgraph
 
+# ── Multi-LLM Provider Support ─────────────────────────────────────
+langchain-openai
+langchain-anthropic
+langchain-groq
+langchain-mistralai
+langchain-ollama
+
 pinecone
 motor
 pymongo

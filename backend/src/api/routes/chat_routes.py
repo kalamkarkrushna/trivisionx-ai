@@ -1,8 +1,15 @@
 """
-src/api/routes/chat_routes.py — Chat endpoint with SSE streaming.
+src/api/routes/chat_routes.py — Chat endpoint with SSE streaming
 =================================================================
 Accepts POST /api/chat/ with JWT authentication.
-Returns a Server-Sent Events stream from the LangGraph multi-agent pipeline.
+Returns a Server-Sent Events stream.
+
+Supports two modes:
+  - "quick": Direct LLM call (no LangGraph) for maximum speed
+  - "agent": Full LangGraph multi-agent pipeline
+
+Supports multiple model providers (openai, anthropic, google, groq, mistral, etc.)
+and multiple workflow types (research, coding, data_analysis, etc.)
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -28,8 +35,16 @@ async def chat(
     POST /api/chat/
 
     Accepts a user query and returns a Server-Sent Events stream.
-    The LangGraph pipeline runs 5 agents:
-      Research → Retrieval (MMR) → Citation → Summary → Report
+
+    Query parameters:
+      - msg: The user's message
+      - conversation_id: Optional conversation ID for context
+      - mode: "quick" (direct LLM) or "agent" (LangGraph pipeline) — default "agent"
+      - workflow_type: "research" | "summary" | "technical" | "competitive" |
+                       "coding" | "data_analysis" — default "research"
+      - model_provider: "openai" | "anthropic" | "google" | "groq" | "mistral" |
+                        "ollama" | "deepseek" — optional, uses DEFAULT_LLM_PROVIDER
+      - model_name: Specific model override — optional, uses provider default
 
     SSE events:
       {"node": "<name>", "status": "running|completed"}
@@ -41,7 +56,6 @@ async def chat(
     user_id = str(current_user["_id"])
     db = get_database()
 
-    # ── Input sanitization and injection guard ────────────────────────────────
     query = sanitize(request.msg)
     if scan_text(query):
         raise HTTPException(
@@ -55,7 +69,6 @@ async def chat(
             detail="Query cannot be empty.",
         )
 
-    # ── Persist user message BEFORE streaming ─────────────────────────────────
     if request.conversation_id:
         try:
             await insert_message(
@@ -67,7 +80,13 @@ async def chat(
         except Exception as e:
             logger.warning(f"Failed to save user message: {e}")
 
-    # ── Return SSE stream ─────────────────────────────────────────────────────
+    logger.info(
+        f"[Chat] mode={request.mode}, workflow={request.workflow_type}, "
+        f"provider={request.model_provider or 'default'}, "
+        f"model={request.model_name or 'default'}, "
+        f"query='{query[:60]}'"
+    )
+
     return StreamingResponse(
         stream_chat_response(
             query=query,
@@ -76,6 +95,9 @@ async def chat(
             messages_collection=db[COLLECTION_MESSAGES],
             conversations_collection=db[COLLECTION_CONVERSATIONS],
             mode=request.mode,
+            workflow_type=request.workflow_type,
+            model_provider=request.model_provider,
+            model_name=request.model_name,
         ),
         media_type="text/event-stream",
         headers={

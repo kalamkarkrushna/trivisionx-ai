@@ -2,7 +2,7 @@
 from typing import Dict, Optional
 from src.rag.pipelines.report_pipeline import generate_report
 from src.rag.memory.research_memory import save_research_session
-from src.services.llm_service import get_chat_llm
+from src.core.llm_factory import get_llm
 from src.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -14,12 +14,14 @@ async def create_report(
     conversation_id: Optional[str],
     reports_collection,
     top_k: int = 10,
+    model_provider: str = "",
+    model_name: str = "",
 ) -> Dict:
     """
     Generates a research report and saves it to MongoDB.
     Returns the full report dict.
     """
-    llm = get_chat_llm()
+    llm = get_llm(provider=model_provider, model_name=model_name)
     user_filter = {"user_id": user_id}
 
     result = await generate_report(

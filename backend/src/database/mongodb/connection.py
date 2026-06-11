@@ -7,6 +7,8 @@ from src.core.logger import get_logger
 logger = get_logger(__name__)
 
 
+import certifi
+
 @lru_cache(maxsize=1)
 def get_mongo_client() -> AsyncIOMotorClient:
     """
@@ -22,6 +24,7 @@ def get_mongo_client() -> AsyncIOMotorClient:
         serverSelectionTimeoutMS=5000,   # fail fast if Atlas unreachable
         connectTimeoutMS=5000,
         socketTimeoutMS=10000,
+        tlsCAFile=certifi.where(),
     )
 
 

@@ -1,17 +1,19 @@
 """
-src/agents/langgraph/graph.py — LangGraph multi-agent workflow
-==============================================================
-Compiles the 5-agent research pipeline matching the image workflow:
+src/agents/langgraph/graph.py — LangGraph multi-agent workflow coordinator
+==========================================================================
+Coordinates the 5-agent research pipeline matching the image workflow:
 
   Research Agent → [conditional] → Retrieval Agent → Citation Agent
                                  → Summary Agent  → Report Agent → END
-                ↘ (no retrieval) → Summary Agent  → ...
+               ↘ (no retrieval) → Summary Agent  → ...
+
+Also loads coding and data_analysis workflows when requested.
 
 Agent mapping (image label → node name):
-  Research agent  → planner_node   (query analysis + search planning)
+  Research agent  → planner_node   (query analysis + smart routing)
   Retrieval agent → retriever_node (MMR semantic search via Pinecone)
   Citation agent  → citation_node  (dedup + confidence scoring)
-  Summary agent   → summarizer_node (GPT-4o synthesis with history)
+  Summary agent   → summarizer_node (LLM synthesis with history)
   Report agent    → report_node    (final markdown assembly)
 """
 from langgraph.graph import StateGraph, END
@@ -21,22 +23,28 @@ from src.agents.langgraph.nodes.retriever_node import retriever_node
 from src.agents.langgraph.nodes.summarizer_node import summarizer_node
 from src.agents.langgraph.nodes.citation_node import citation_node
 from src.agents.langgraph.nodes.report_node import report_node
+from src.agents.langgraph.nodes.code_generation_node import code_generation_node
+from src.agents.langgraph.nodes.code_review_node import code_review_node
+from src.agents.langgraph.nodes.testing_node import testing_node
+from src.agents.langgraph.nodes.data_analysis_node import data_analysis_node
+from src.agents.langgraph.graphs.factory import get_workflow_for_mode
 from src.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Compiled graph — rebuilt fresh on each import (no stale lru_cache)
 _compiled_graph = None
 
 
 def _should_retrieve(state: AgentState) -> str:
     """
-    Conditional routing: if the planner generated search queries, run retrieval.
-    Otherwise skip to summarizer directly (e.g. casual greetings).
+    Conditional routing: if requires_context, run retrieval.
+    Otherwise skip to summarizer directly.
     """
-    plan = state.get("plan", [])
-    route = "retriever" if plan else "summarizer"
-    logger.debug(f"[Graph] Routing after planner → {route} (plan_len={len(plan)})")
+    if state.get("terminate"):
+        return "end"
+    requires_context = state.get("requires_context", False)
+    route = "retriever" if requires_context else "summarizer"
+    logger.debug(f"[Graph] Routing after planner → {route}")
     return route
 
 
@@ -51,47 +59,52 @@ def build_graph() -> StateGraph:
     """
     workflow = StateGraph(AgentState)
 
-    # ── Register nodes ────────────────────────────────────────────────────────
-    workflow.add_node("planner", planner_node)      # Research Agent
-    workflow.add_node("retriever", retriever_node)  # Retrieval Agent
-    workflow.add_node("citation", citation_node)    # Citation Agent
-    workflow.add_node("summarizer", summarizer_node)# Summary Agent
-    workflow.add_node("reporter", report_node)      # Report Agent
+    workflow.add_node("planner", planner_node)
+    workflow.add_node("retriever", retriever_node)
+    workflow.add_node("citation", citation_node)
+    workflow.add_node("summarizer", summarizer_node)
+    workflow.add_node("reporter", report_node)
 
-    # ── Entry point ───────────────────────────────────────────────────────────
     workflow.set_entry_point("planner")
 
-    # ── Conditional routing after planner ────────────────────────────────────
     workflow.add_conditional_edges(
         "planner",
         _should_retrieve,
         {
+            "end": END,
             "retriever": "retriever",
             "summarizer": "summarizer",
         },
     )
 
-    # ── Linear edges ──────────────────────────────────────────────────────────
-    # Retrieval path: retriever → citation → summarizer → reporter
     workflow.add_edge("retriever", "citation")
     workflow.add_edge("citation", "summarizer")
     workflow.add_edge("summarizer", "reporter")
     workflow.add_edge("reporter", END)
 
     compiled = workflow.compile()
-    logger.info("LangGraph 5-agent workflow compiled successfully")
+    logger.info("[Graph] Research workflow compiled successfully")
     return compiled
 
 
-def get_graph():
+def get_graph(workflow_type: str = "research"):
     """
-    Returns the compiled LangGraph instance.
-    Rebuilds if not yet initialised (no lru_cache — avoids stale state).
+    Returns the compiled LangGraph for the given workflow type.
+
+    Args:
+        workflow_type: 'research' | 'summary' | 'technical' | 'competitive' |
+                      'coding' | 'data_analysis'
+
+    For the standard research pipeline, uses a cached global instance.
+    For other workflows, delegates to the factory.
     """
-    global _compiled_graph
-    if _compiled_graph is None:
-        _compiled_graph = build_graph()
-    return _compiled_graph
+    if workflow_type == "research":
+        global _compiled_graph
+        if _compiled_graph is None:
+            _compiled_graph = build_graph()
+        return _compiled_graph
+
+    return get_workflow_for_mode(workflow_type)
 
 
 def reset_graph():

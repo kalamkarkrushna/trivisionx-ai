@@ -1,4 +1,6 @@
-"""Pinecone vector store — upgraded with MMR, metadata filtering, and namespaces."""
+"""Pinecone vector store — upgraded with MMR, metadata filtering, and namespaces.
+
+Uses the dynamic embeddings provider from settings.EMBEDDING_PROVIDER."""
 from functools import lru_cache
 from typing import List, Optional, Dict, Any
 from langchain_pinecone import PineconeVectorStore
@@ -12,8 +14,11 @@ logger = get_logger(__name__)
 
 @lru_cache(maxsize=1)
 def get_vector_store() -> PineconeVectorStore:
-    """Returns a cached Pinecone vector store instance."""
-    logger.info(f"Connecting to Pinecone index: {settings.PINECONE_INDEX_NAME}")
+    """Returns a cached Pinecone vector store instance with dynamic embeddings."""
+    logger.info(
+        f"Connecting to Pinecone index: {settings.PINECONE_INDEX_NAME} "
+        f"(embedding_provider={settings.EMBEDDING_PROVIDER})"
+    )
     import os
     if settings.PINECONE_API_KEY:
         os.environ["PINECONE_API_KEY"] = settings.PINECONE_API_KEY
@@ -64,8 +69,7 @@ def delete_by_filename(user_id: str, filename: str) -> bool:
     """Delete all chunks for a specific user and filename."""
     store = get_vector_store()
     try:
-        # We need to access the underlying pinecone index object to delete by filter
-        index = store.get_pinecone_index(store.index_name)
+        index = store.index  # Use property instead of get_pinecone_index
         index.delete(filter={"user_id": user_id, "filename": filename})
         logger.info(f"Deleted chunks from Pinecone for user={user_id}, filename={filename}")
         return True

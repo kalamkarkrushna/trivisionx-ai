@@ -1,13 +1,8 @@
 """
 src/agents/langgraph/nodes/retriever_node.py — Retrieval Agent
-===============================================================
-Corresponds to "Retrieval agent" in the image workflow.
-
-Implements the "Retrieve — Semantic MMR rerank" pipeline step:
-  - Executes each planned search query against Pinecone
-  - Uses MMR (Maximal Marginal Relevance) for diversity-aware reranking
-  - Deduplicates results across multiple queries
-  - Attaches structured citation metadata
+==============================================================
+Implements MMR-based retrieval from Pinecone vector store.
+All results are user-scoped via metadata filtering.
 """
 from typing import List, Dict
 from src.agents.langgraph.state import AgentState
@@ -22,26 +17,32 @@ logger = get_logger(__name__)
 async def retriever_node(state: AgentState) -> dict:
     """
     Retrieval Agent — queries Pinecone with MMR for diverse, relevant chunks.
-
-    For each query in the research plan:
-      1. Run MMR retrieval (semantic + diversity rerank)
-      2. Collect docs + format citations
-      3. Cross-query deduplication by doc_id (content hash)
+    Respects the dynamic LLM selection for embedding generation.
     """
     plan = state.get("plan", [])
     query = state.get("query", "")
     user_id = state.get("user_id")
+    provider = state.get("selected_llm_provider", "")
+    model_name = state.get("selected_llm_model", "")
+    workflow_type = state.get("workflow_type", "research")
 
-    # Fallback: if planner produced no plan, use original query directly
+    # If planner said no context needed, return empty
+    if not state.get("requires_context", True):
+        logger.info("[Retrieval] requires_context=False — skipping retrieval")
+        return {
+            "retrieved_docs": [],
+            "citations": [],
+            "current_node": "retriever",
+        }
+
     search_queries = plan if plan else [query]
     user_filter = {"user_id": user_id} if user_id else None
 
     logger.info(
-        f"[Retrieval Agent] Running {len(search_queries)} queries "
-        f"(user_filter={'set' if user_filter else 'none'})"
+        f"[Retrieval] workflow={workflow_type}, {len(search_queries)} queries, "
+        f"provider={provider}, model={model_name or 'default'}"
     )
 
-    # Use MMR retriever directly — this is the 'Semantic MMR rerank' step
     retriever = get_mmr_retriever(top_k=DEFAULT_TOP_K, filter=user_filter)
 
     all_docs: List[Dict] = []
@@ -50,20 +51,21 @@ async def retriever_node(state: AgentState) -> dict:
 
     import asyncio
     import hashlib
-    
-    # Run all queries concurrently to reduce latency
+
     async def fetch_docs(sq: str):
         try:
-            return await retriever.ainvoke(sq)
+            return await asyncio.wait_for(retriever.ainvoke(sq), timeout=15.0)
+        except asyncio.TimeoutError:
+            logger.warning(f"[Retrieval] Timeout: '{sq[:60]}'")
+            return []
         except Exception as e:
-            logger.warning(f"[Retrieval Agent] Query failed: '{sq[:60]}' — {e}")
+            logger.warning(f"[Retrieval] Error: '{sq[:60]}' — {e}")
             return []
 
     results = await asyncio.gather(*(fetch_docs(sq) for sq in search_queries))
 
     for docs in results:
         for i, doc in enumerate(docs):
-            # Compute content-based ID for cross-query dedup
             raw = (
                 doc.metadata.get("filename", "")
                 + str(doc.metadata.get("chunk_index", ""))
@@ -83,8 +85,7 @@ async def retriever_node(state: AgentState) -> dict:
             all_citations.append(format_citation(doc, len(all_citations)))
 
     logger.info(
-        f"[Retrieval Agent] {len(all_docs)} unique chunks, "
-        f"{len(all_citations)} citations (from {len(search_queries)} queries)"
+        f"[Retrieval] {len(all_docs)} chunks, {len(all_citations)} citations"
     )
 
     return {

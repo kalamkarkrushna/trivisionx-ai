@@ -6,6 +6,55 @@ GEMINI_FALLBACK_MODELS = [
     "gemini-2.0-flash-lite",
 ]
 
+OPENAI_FALLBACK_MODELS = [
+    "gpt-4o-mini",
+    "gpt-4o",
+    "gpt-4-turbo",
+]
+
+ANTHROPIC_FALLBACK_MODELS = [
+    "claude-sonnet-4-20250514",
+    "claude-3-5-haiku-latest",
+    "claude-3-opus-latest",
+]
+
+GROQ_FALLBACK_MODELS = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "mixtral-8x7b-32768",
+]
+
+MISTRAL_FALLBACK_MODELS = [
+    "mistral-large-latest",
+    "mistral-small-latest",
+    "open-mistral-nemo",
+]
+
+SUPPORTED_PROVIDERS = [
+    "openai", "anthropic", "google", "groq", "mistral", "ollama", "deepseek",
+]
+
+DEFAULT_MODEL_MAP = {
+    "openai":    "gpt-4o-mini",
+    "anthropic": "claude-sonnet-4-20250514",
+    "google":    "gemini-2.5-flash",
+    "groq":      "llama-3.3-70b-versatile",
+    "mistral":   "mistral-large-latest",
+    "ollama":    "llama3",
+    "deepseek":  "deepseek-chat",
+}
+
+# ─── Workflow Types ────────────────────────────────────────────────────────────
+
+WORKFLOW_TYPES = [
+    "research",
+    "summary",
+    "technical",
+    "competitive",
+    "coding",
+    "data_analysis",
+]
+
 # ─── RAG Chunking ───────────────────────────────────────────────────────────────
 DEFAULT_CHUNK_SIZE = 1000
 DEFAULT_CHUNK_OVERLAP = 200

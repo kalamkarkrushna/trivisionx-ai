@@ -1,164 +1,180 @@
 """
-src/agents/langgraph/nodes/planner_node.py — Research Agent
-============================================================
-Corresponds to "Research agent" in the image workflow.
+src/agents/langgraph/nodes/planner_node.py — Smart Router Agent
+===============================================================
+Analyzes the user query and decides:
+  1. Does this require vector DB / document context?  → route to retriever_node
+  2. Is this general reasoning/coding/planning?       → route to summarizer (no retrieval)
+  3. Is this a coding workflow?                       → route to code_generation
+  4. Is this a data analysis workflow?                → route to data_analysis
 
-Responsibilities:
-  - Understand the user's query in context of conversation history
-  - Decide whether document retrieval is needed
-  - Generate 2–4 targeted search queries that cover different angles
+Uses the dynamically selected LLM from the factory.
 """
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from pydantic import BaseModel, Field
 from typing import List
 from src.agents.langgraph.state import AgentState
-from src.services.llm_service import get_mini_llm
+from src.core.llm_factory import get_llm
 from src.core.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-class ResearchPlan(BaseModel):
-    retrieval: bool = Field(
-        description=(
-            "True if the query requires retrieving documents from the vector store. "
-            "False for greetings, casual questions, or simple factual queries."
-        )
+class PlannerDecision(BaseModel):
+    requires_context: bool = Field(
+        description="True if answering requires external documents/context from the vector DB. "
+                    "False for general reasoning, greetings, or questions answerable from LLM knowledge."
     )
     queries: List[str] = Field(
-        description=(
-            "2–4 specific, targeted search queries to run against the vector store. "
-            "Each query should cover a different angle of the research topic. "
-            "Empty list when retrieval=False."
-        )
+        description="2-4 targeted search queries for the vector store if requires_context=True. "
+                    "Empty list otherwise."
     )
-    rationale: str = Field(
-        description="Brief explanation of the research strategy chosen."
+    reasoning: str = Field(
+        description="Brief explanation of the routing decision."
     )
 
 
-PLANNER_SYSTEM = """You are a Planning Agent inside a LangGraph multi-agent research system.
+PLANNER_SYSTEM_V2 = """You are a Smart Routing Planner inside a multi-agent AI system.
 
-Your task is to decide whether retrieval is required and generate search queries.
+Your job: analyze the user's query and decide the best execution path.
 
-CRITICAL REQUIREMENTS:
+DECISION RULES:
 
-1. Return ONLY valid JSON.
-2. Do NOT wrap JSON in markdown.
-3. Do NOT use ```json code fences.
-4. Do NOT include explanations before or after the JSON.
-5. Do NOT include comments.
-6. Output must be parseable by Python json.loads().
-7. Always return all required fields.
+1. **requires_context = true** — Route to document retrieval when the query asks about:
+   - Specific documents, research papers, uploaded files
+   - Technical details that need factual grounding
+   - Questions referencing prior conversation context or specific data
+   - Scientific, academic, or research topics needing citations
 
-Required schema:
+2. **requires_context = false** — Skip retrieval for:
+   - General conversation, greetings, casual chat
+   - Coding questions, debugging, architecture advice
+   - Mathematical reasoning, logic puzzles
+   - Creative writing, brainstorming
+   - Questions answerable from the LLM's training knowledge
+   - "What is X", "Explain Y", "How does Z work" — general knowledge
 
-{
-"retrieval": true,
-"queries": ["query1", "query2"],
-"rationale": "reason"
-}
-
-Rules:
-
-* For educational, technical, programming, scientific, AI, machine learning, cloud, DevOps, data science, cybersecurity, research, framework, API, model, library, architecture, comparison, tutorial, guide, and explanatory questions:
-  retrieval = true
-
-* For greetings, casual chat, arithmetic, and personal opinions:
-  retrieval = false
-
-* When retrieval=true generate 3-5 search queries.
+CRITICAL INSTRUCTIONS:
+- Return ONLY valid JSON. No markdown, no code fences, no extra text.
+- When requires_context=true, generate 2-4 diverse search queries.
+- When requires_context=false, return an empty queries list.
 
 Examples:
+Q: "What are the latest findings on transformer architectures in my uploaded papers?"
+→ {"requires_context": true, "queries": ["transformer architecture key findings", "attention mechanism advancements", "transformer model comparisons"], "reasoning": "Research question requiring document retrieval for cited answers."}
 
-Input:
-What is Python?
+Q: "Write a Python function to sort a list of dictionaries by a key"
+→ {"requires_context": false, "queries": [], "reasoning": "General coding task answerable from LLM knowledge."}
 
-Output:
-{"retrieval":true,"queries":["Python programming language overview","Python features and applications","Python programming examples"],"rationale":"Educational technical question requiring detailed context."}
+Q: "Hello, how are you?"
+→ {"requires_context": false, "queries": [], "reasoning": "Greeting, no retrieval needed."}
 
-Input:
-Hello
-
-Output:
-{"retrieval":false,"queries":[],"rationale":"Greeting does not require retrieval."}
-
-Remember:
-Return ONLY JSON.
-No markdown.
-No code fences.
-No extra text."""
+Q: "What's the capital of France?"
+→ {"requires_context": false, "queries": [], "reasoning": "Simple factual query answerable from LLM knowledge."}
+"""
 
 
 async def planner_node(state: AgentState) -> dict:
     """
-    Research Agent — analyzes the query and generates a multi-angle research plan.
-    Injects conversation history to handle follow-up queries correctly.
-
-    When mode='simple': immediately returns empty plan → forces direct LLM path.
-    When mode='research': runs full RAG-based planning as usual.
+    Smart Router — analyzes query, decides if context retrieval is needed.
+    Routes differently based on workflow_type:
+      - research/technical/competitive: decide between retriever or summarizer
+      - coding: always route to code_generation (no retrieval)
+      - data_analysis: always route to data_analysis (no retrieval)
+      - summary: skip retrieval, go directly to summarizer
     """
     query = state.get("query", "")
     history = state.get("history", [])
-    mode = state.get("mode", "research")
-    logger.info(f"[Research Agent] Mode='{mode}' | Planning for: '{query[:80]}'")
+    mode = state.get("mode", "agent")
+    workflow_type = state.get("workflow_type", "research")
+    provider = state.get("selected_llm_provider", "")
+    model_name = state.get("selected_llm_model", "")
 
-    # ── Simple/Summary mode: skip RAG planning ────────────────────────────────
-    if mode in ("simple", "summary"):
-        logger.info(f"[Research Agent] {mode} mode — bypassing retrieval planning")
+    logger.info(
+        f"[Planner] workflow={workflow_type}, mode={mode}, "
+        f"provider={provider}, query='{query[:60]}'"
+    )
+
+    # Quick mode → skip LangGraph entirely (handled at service level)
+    if mode == "quick":
         return {
             "plan": [],
+            "requires_context": False,
             "current_node": "planner",
             "errors": [],
         }
 
-    # Fast-path heuristic for simple greetings to save LLM roundtrip latency
-    clean_query = query.strip().lower()
-    if clean_query in ("hi", "hello", "hey", "hii", "heya", "hola", "sup"):
-        logger.info("[Research Agent] Fast-path routing triggered for greeting")
+    # Workflow-type routing
+    if workflow_type == "coding":
+        logger.info("[Planner] Routing to coding workflow (no retrieval)")
         return {
             "plan": [],
+            "requires_context": False,
+            "current_node": "planner",
+            "errors": [],
+        }
+
+    if workflow_type == "data_analysis":
+        logger.info("[Planner] Routing to data_analysis workflow (no retrieval)")
+        return {
+            "plan": [],
+            "requires_context": False,
+            "current_node": "planner",
+            "errors": [],
+        }
+
+    if workflow_type == "summary":
+        logger.info("[Planner] Summary mode — bypassing retrieval")
+        return {
+            "plan": [],
+            "requires_context": False,
+            "current_node": "planner",
+            "errors": [],
+        }
+
+    # Fast-path for greetings
+    clean_query = query.strip().lower()
+    if clean_query in ("hi", "hello", "hey", "hii", "heya", "hola", "sup"):
+        logger.info("[Planner] Fast-path greeting detected")
+        return {
+            "plan": [],
+            "requires_context": False,
             "terminate": True,
             "final_output": "Hello! How can I help you with your research today?",
             "current_node": "planner",
             "errors": [],
         }
 
-    # Use the mini model for planning (faster, cheaper — structured output)
-    llm = get_mini_llm().with_structured_output(ResearchPlan)
+    # Use the dynamically selected LLM with structured output
+    llm = get_llm(provider=provider, model_name=model_name, temperature=0.1)
+    structured_llm = llm.with_structured_output(PlannerDecision)
 
-    messages = [SystemMessage(content=PLANNER_SYSTEM)]
-
-    # Inject recent conversation history for context-aware planning
-    for turn in history[-2:]:  # last 2 turns is sufficient for planning context
+    messages = [SystemMessage(content=PLANNER_SYSTEM_V2)]
+    for turn in history[-2:]:
         role = turn.get("role", "")
         content = turn.get("content", "")
         if role == "user":
             messages.append(HumanMessage(content=content))
         elif role == "assistant":
             messages.append(AIMessage(content=content))
-
     messages.append(HumanMessage(content=query))
 
     try:
-        response: ResearchPlan = await llm.ainvoke(messages)
-        plan = response.queries if response.retrieval else []
-        rationale = response.rationale
-        retrieval = response.retrieval
+        decision: PlannerDecision = await structured_llm.ainvoke(messages)
+        plan = decision.queries if decision.requires_context else []
+        requires_context = decision.requires_context
     except Exception as e:
-        logger.error(f"Planner LLM failed (API error): {e}")
-        # Graceful fallback if the API is overloaded (503)
+        logger.error(f"[Planner] LLM call failed: {e}")
         plan = []
-        retrieval = False
-        rationale = "Fallback due to API high demand."
+        requires_context = False
 
     logger.info(
-        f"[Research Agent] retrieval={retrieval}, "
-        f"queries={len(plan)}, rationale='{rationale[:60]}'"
+        f"[Planner] requires_context={requires_context}, "
+        f"queries={len(plan)}, reasoning='{decision.reasoning[:60] if hasattr(decision, 'reasoning') else 'fallback'}'"
     )
 
     return {
         "plan": plan,
+        "requires_context": requires_context,
         "current_node": "planner",
         "errors": [],
     }
