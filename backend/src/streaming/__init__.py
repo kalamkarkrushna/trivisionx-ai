@@ -38,6 +38,11 @@ def sse_quality_score_event(score: dict) -> str:
     return f"data: {json.dumps({'type': 'quality_score', 'data': score})}\n\n"
 
 
+def sse_provider_switch_event(from_provider: str, to_provider: str, reason: str) -> str:
+    """Format a provider failover event for SSE."""
+    return f"data: {json.dumps({'type': 'provider_switch', 'from': from_provider, 'to': to_provider, 'reason': reason})}\n\n"
+
+
 async def stream_tokens(llm, messages, streamed_text: list) -> AsyncGenerator[str, None]:
     """
     Generic token streamer that works with any LangChain chat model.

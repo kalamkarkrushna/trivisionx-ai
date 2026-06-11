@@ -74,9 +74,8 @@ function ShadcnModeToggle({ mode, onChange }) {
 
 // ─── Model Selector ──────────────────────────────────────────────────────────
 const CHATBOTS = [
-  { name: "GPT-5", icon: <Bot className="h-3.5 w-3.5" />, desc: "OpenAI's latest" },
-  { name: "Claude Sonnet 4", icon: <BrainCircuit className="h-3.5 w-3.5" />, desc: "Anthropic" },
   { name: "Gemini", icon: <Hexagon className="h-3.5 w-3.5" />, desc: "Google DeepMind" },
+  { name: "Claude Sonnet 4", icon: <BrainCircuit className="h-3.5 w-3.5" />, desc: "Anthropic" },
   {
     name: "Assistant",
     icon: <Asterisk className="h-3.5 w-3.5" />,
@@ -85,7 +84,7 @@ const CHATBOTS = [
 ];
 
 function ModelSelector() {
-  const [selectedBot, setSelectedBot] = useState("GPT-5");
+  const [selectedBot, setSelectedBot] = useState("Gemini");
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
   const current = CHATBOTS.find((b) => b.name === selectedBot);

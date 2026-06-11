@@ -8,7 +8,7 @@ Supports two modes:
   - "quick": Direct LLM call (no LangGraph) for maximum speed
   - "agent": Full LangGraph multi-agent pipeline
 
-Supports multiple model providers (openai, anthropic, google, groq, mistral, etc.)
+Supports multiple model providers (anthropic, google, groq, mistral, etc.)
 and multiple workflow types (research, coding, data_analysis, etc.)
 """
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -42,8 +42,7 @@ async def chat(
       - mode: "quick" (direct LLM) or "agent" (LangGraph pipeline) — default "agent"
       - workflow_type: "research" | "summary" | "technical" | "competitive" |
                        "coding" | "data_analysis" — default "research"
-      - model_provider: "openai" | "anthropic" | "google" | "groq" | "mistral" |
-                        "ollama" | "deepseek" — optional, uses DEFAULT_LLM_PROVIDER
+      - model_provider: "anthropic" | "google" | "groq" | "mistral" — optional, uses DEFAULT_LLM_PROVIDER
       - model_name: Specific model override — optional, uses provider default
 
     SSE events:

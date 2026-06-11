@@ -1,7 +1,7 @@
 """
 src/rag/embeddings/google_embeddings.py — Embeddings factory
 ============================================================
-Supports multiple embedding providers: google, openai, huggingface.
+Supports multiple embedding providers: google, huggingface.
 The selected provider reads from settings.EMBEDDING_PROVIDER and
 settings.EMBEDDING_MODEL.
 """
@@ -56,7 +56,6 @@ def get_embeddings() -> Embeddings:
 
     Supported providers:
       - google: GoogleGenerativeAIEmbeddings (default, dim=384)
-      - openai: OpenAIEmbeddings (dim=1536, trimmed to 384)
       - huggingface: HuggingFaceEmbeddings (dim=384)
     """
     provider = (settings.EMBEDDING_PROVIDER or "google").lower().strip()
@@ -65,9 +64,7 @@ def get_embeddings() -> Embeddings:
 
     logger.info(f"Initializing embeddings: provider={provider}, model={model_name}, dim={dimension}")
 
-    if provider == "openai":
-        return _build_openai_embeddings(model_name, dimension)
-    elif provider == "huggingface":
+    if provider == "huggingface":
         return _build_huggingface_embeddings(model_name, dimension)
     else:
         return _build_google_embeddings(model_name, dimension)
@@ -93,17 +90,6 @@ def _build_google_embeddings(model_name: str, dimension: int) -> Embeddings:
         google_api_key=settings.GOOGLE_API_KEY,
     )
 
-
-def _build_openai_embeddings(model_name: str, dimension: int) -> Embeddings:
-    from langchain_openai import OpenAIEmbeddings
-    if not settings.OPENAI_API_KEY:
-        raise RuntimeError("OPENAI_API_KEY is not set. Add it to your .env file.")
-
-    raw = OpenAIEmbeddings(
-        model=model_name or "text-embedding-3-small",
-        api_key=settings.OPENAI_API_KEY,
-    )
-    return FixedDimensionEmbeddings(raw, dimension)
 
 
 def _build_huggingface_embeddings(model_name: str, dimension: int) -> Embeddings:

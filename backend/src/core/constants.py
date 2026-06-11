@@ -6,12 +6,6 @@ GEMINI_FALLBACK_MODELS = [
     "gemini-2.0-flash-lite",
 ]
 
-OPENAI_FALLBACK_MODELS = [
-    "gpt-4o-mini",
-    "gpt-4o",
-    "gpt-4-turbo",
-]
-
 ANTHROPIC_FALLBACK_MODELS = [
     "claude-sonnet-4-20250514",
     "claude-3-5-haiku-latest",
@@ -31,17 +25,14 @@ MISTRAL_FALLBACK_MODELS = [
 ]
 
 SUPPORTED_PROVIDERS = [
-    "openai", "anthropic", "google", "groq", "mistral", "ollama", "deepseek",
+    "anthropic", "google", "groq", "mistral",
 ]
 
 DEFAULT_MODEL_MAP = {
-    "openai":    "gpt-4o-mini",
     "anthropic": "claude-sonnet-4-20250514",
     "google":    "gemini-2.5-flash",
     "groq":      "llama-3.3-70b-versatile",
     "mistral":   "mistral-large-latest",
-    "ollama":    "llama3",
-    "deepseek":  "deepseek-chat",
 }
 
 # ─── Workflow Types ────────────────────────────────────────────────────────────

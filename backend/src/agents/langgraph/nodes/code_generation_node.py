@@ -42,8 +42,8 @@ async def code_generation_node(state: AgentState) -> dict:
     logger.info(f"[CodeGen] provider={provider}, query='{query[:60]}'")
 
     llm = get_llm(
-        provider=provider or "openai",
-        model_name=model_name or "gpt-4o-mini",
+        provider=provider or "google",
+        model_name=model_name or "gemini-2.5-flash",
         temperature=0.2,
     )
 

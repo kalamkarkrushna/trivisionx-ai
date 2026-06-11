@@ -42,8 +42,8 @@ async def code_review_node(state: AgentState) -> dict:
     logger.info(f"[CodeReview] provider={provider}, code={len(generated_code)} chars")
 
     llm = get_llm(
-        provider=provider or "openai",
-        model_name=model_name or "gpt-4o-mini",
+        provider=provider or "google",
+        model_name=model_name or "gemini-2.5-flash",
         temperature=0.1,
     )
 

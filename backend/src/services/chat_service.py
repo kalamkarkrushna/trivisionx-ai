@@ -47,7 +47,7 @@ async def stream_chat_response(
     Args:
         mode: "quick" (direct LLM) or "agent" (LangGraph)
         workflow_type: research | summary | technical | competitive | coding | data_analysis
-        model_provider: openai | anthropic | google | groq | mistral | ollama | deepseek
+        model_provider: anthropic | google | groq | mistral
         model_name: Specific model name override
     """
     history = []
@@ -68,13 +68,16 @@ async def stream_chat_response(
     model = model_name or ""
 
     # ═════════════════════════════════════════════════════════════════════
-    # QUICK MODE — Direct LLM call, bypasses LangGraph entirely
+    # QUICK MODE — Direct LLM call with automatic provider failover
     # ═════════════════════════════════════════════════════════════════════
     if mode == "quick":
         try:
             from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+            from src.core.llm_factory import get_fallback_providers, is_quota_error
+            from src.streaming import sse_provider_switch_event
+            from src.core.logger import get_logger as _get_logger
 
-            llm = get_llm(provider=provider, model_name=model, temperature=0.3)
+            qlog = _get_logger("chat_service.quick")
 
             system_prompts = {
                 "research": "You are a helpful, fast AI research assistant. Answer concisely and accurately.",
@@ -96,25 +99,53 @@ async def stream_chat_response(
 
             yield f"data: {json.dumps({'node': 'direct_llm', 'status': 'running'})}\n\n"
 
-            try:
-                async for chunk in llm.astream(langchain_messages):
-                    if hasattr(chunk, "content") and chunk.content:
-                        token = extract_text(chunk.content)
-                        if not token:
-                            continue
-                        streamed_text += token
-                        yield f"data: {json.dumps({'type': 'token', 'data': token, 'text': token})}\n\n"
-            except Exception as e:
-                error_msg = str(e)
-                logger.error(f"Quick mode LLM error: {e}")
-                if "429" in error_msg or "quota" in error_msg.lower():
-                    err_msg = "AI quota exhausted. Please check your billing plan or switch providers."
-                elif "503" in error_msg or "unavailable" in error_msg.lower():
-                    err_msg = "AI provider experiencing high demand. Please try again."
-                else:
-                    err_msg = f"AI provider error: {str(e)[:100]}"
-                streamed_text = err_msg
-                yield f"data: {json.dumps({'type': 'token', 'data': err_msg, 'text': err_msg})}\n\n"
+            # ── Auto-failover loop ──────────────────────────────────────────
+            fallback_providers = get_fallback_providers(provider)
+            qlog.info(f"Quick mode fallback chain: {fallback_providers}")
+
+            streamed_text = ""
+            succeeded = False
+
+            for attempt_idx, attempt_provider in enumerate(fallback_providers):
+                try:
+                    if attempt_idx > 0:
+                        prev = fallback_providers[attempt_idx - 1]
+                        qlog.warning(f"Failing over from {prev} to {attempt_provider}")
+                        yield sse_provider_switch_event(prev, attempt_provider, "quota_exhausted")
+
+                    attempt_model = model if attempt_idx == 0 else ""
+                    llm = get_llm(provider=attempt_provider, model_name=attempt_model, temperature=0.3)
+
+                    async for chunk in llm.astream(langchain_messages):
+                        if hasattr(chunk, "content") and chunk.content:
+                            token = extract_text(chunk.content)
+                            if not token:
+                                continue
+                            streamed_text += token
+                            yield f"data: {json.dumps({'type': 'token', 'data': token, 'text': token})}\n\n"
+
+                    succeeded = True
+                    break
+
+                except Exception as e:
+                    qlog.error(f"Quick mode provider '{attempt_provider}' error: {e}")
+                    has_more = attempt_idx < len(fallback_providers) - 1
+
+                    if has_more:
+                        qlog.warning(f"{attempt_provider} failed, trying next provider")
+                        continue
+
+                    # Last provider — report the error to the user
+                    if is_quota_error(e):
+                        err_msg = "AI quota exhausted on all available providers. Please check your billing plans."
+                    elif "503" in str(e) or "unavailable" in str(e).lower():
+                        err_msg = "AI provider experiencing high demand. Please try again."
+                    else:
+                        err_msg = f"AI provider error: {str(e)[:100]}"
+                    streamed_text = err_msg
+                    yield f"data: {json.dumps({'type': 'token', 'data': err_msg, 'text': err_msg})}\n\n"
+                    succeeded = True
+                    break
 
             yield f"data: {json.dumps({'node': 'direct_llm', 'status': 'completed'})}\n\n"
             yield f"data: {json.dumps({'done': True, 'sources': []})}\n\n"
@@ -217,6 +248,11 @@ async def stream_chat_response(
                         continue
                     streamed_text += token
                     yield f"data: {json.dumps({'type': 'token', 'data': token, 'text': token})}\n\n"
+
+            # Custom events (e.g. provider failover)
+            elif kind == "on_custom_event":
+                if name == "provider_switch":
+                    yield f"data: {json.dumps({'type': 'provider_switch', **data})}\n\n"
 
         yield f"data: {json.dumps({'done': True, 'sources': final_citations})}\n\n"
 

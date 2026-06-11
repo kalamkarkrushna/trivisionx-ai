@@ -9,7 +9,9 @@ Analyzes the user query and decides:
 
 Uses the dynamically selected LLM from the factory.
 """
+from typing import Dict, Any, Type
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from langchain_core.callbacks.manager import adispatch_custom_event
 from pydantic import BaseModel, Field
 from typing import List
 from src.agents.langgraph.state import AgentState
@@ -144,10 +146,7 @@ async def planner_node(state: AgentState) -> dict:
             "errors": [],
         }
 
-    # Use the dynamically selected LLM with structured output
-    llm = get_llm(provider=provider, model_name=model_name, temperature=0.1)
-    structured_llm = llm.with_structured_output(PlannerDecision)
-
+    # Build messages once (reused across provider fallback attempts)
     messages = [SystemMessage(content=PLANNER_SYSTEM_V2)]
     for turn in history[-2:]:
         role = turn.get("role", "")
@@ -158,15 +157,49 @@ async def planner_node(state: AgentState) -> dict:
             messages.append(AIMessage(content=content))
     messages.append(HumanMessage(content=query))
 
+    # ── Provider failover loop ──────────────────────────────────────────────
+    from src.core.llm_factory import get_fallback_providers
+    fallback_providers = get_fallback_providers(provider)
+    logger.info(f"[Planner] fallback chain: {fallback_providers}")
+
     decision = None
-    try:
-        decision = await structured_llm.ainvoke(messages)
-        plan = decision.queries if decision.requires_context else []
-        requires_context = decision.requires_context
-    except Exception as e:
-        logger.error(f"[Planner] LLM call failed: {e}")
-        plan = []
-        requires_context = False
+    plan = []
+    requires_context = False
+
+    for attempt_idx, attempt_provider in enumerate(fallback_providers):
+        try:
+            if attempt_idx > 0:
+                logger.warning(f"[Planner] failing over: {fallback_providers[attempt_idx-1]} -> {attempt_provider}")
+
+            attempt_model = model_name if attempt_idx == 0 else ""
+            llm = get_llm(provider=attempt_provider, model_name=attempt_model, temperature=0.1)
+            structured_llm = llm.with_structured_output(PlannerDecision)
+            decision = await structured_llm.ainvoke(messages)
+            plan = decision.queries if decision.requires_context else []
+            requires_context = decision.requires_context
+            break
+
+        except Exception as e:
+            err_msg = str(e).lower()
+            logger.error(f"[Planner] provider '{attempt_provider}' error: {e}")
+            has_more = attempt_idx < len(fallback_providers) - 1
+            if has_more:
+                next_prov = fallback_providers[attempt_idx + 1]
+                logger.warning(f"[Planner] failing over: {attempt_provider} -> {next_prov}")
+                
+                reason = "Error"
+                if "quota" in err_msg or "429" in err_msg:
+                    reason = "Quota exhausted"
+                elif "503" in err_msg or "unavailable" in err_msg:
+                    reason = "Service unavailable"
+                    
+                await adispatch_custom_event(
+                    "provider_switch", 
+                    {"from": attempt_provider, "to": next_prov, "reason": reason}
+                )
+                continue
+            plan = []
+            requires_context = False
 
     reasoning = (decision.reasoning[:60] if decision and hasattr(decision, 'reasoning') else 'fallback')
     logger.info(

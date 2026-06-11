@@ -3,10 +3,12 @@ src/agents/langgraph/nodes/summarizer_node.py — Summary Agent
 =============================================================
 Synthesizes retrieved document chunks (or LLM knowledge) into a clear,
 well-cited markdown answer using the dynamically selected LLM.
+Supports automatic provider failover on quota errors.
 """
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from langchain_core.callbacks.manager import adispatch_custom_event
 from src.agents.langgraph.state import AgentState
-from src.core.llm_factory import get_llm
+from src.core.llm_factory import get_llm, get_fallback_providers
 from src.agents.langgraph.nodes.utils import extract_text
 from src.core.logger import get_logger
 
@@ -21,7 +23,7 @@ STRICT RULES:
 1. Base your answer ONLY on the provided document context below.
 2. NEVER hallucinate or add information not present in the documents.
 3. If the context does not contain enough information, say so explicitly.
-4. Cite sources inline using the format: [Source: filename, Page X]
+4. Cite sources inline using ONLY their corresponding numeric bracket, e.g. [1], [2]. Do NOT use filenames or the word "Source" in citations.
 5. Use proper markdown formatting.
 6. Consider the conversation history to maintain continuity.
 
@@ -87,6 +89,7 @@ async def summarizer_node(state: AgentState) -> dict:
     """
     Summary Agent — synthesizes a high-quality answer using the dynamic LLM.
     Adapts the system prompt based on workflow_type.
+    Automatically fails over to the next configured provider on quota errors.
     """
     query = state.get("query", "")
     docs = state.get("retrieved_docs", [])
@@ -101,26 +104,19 @@ async def summarizer_node(state: AgentState) -> dict:
         f"docs={len(docs)}, history={len(history)} turns"
     )
 
-    # Select system prompt and LLM based on workflow
+    # Select system prompt based on workflow (built once, reused across fallbacks)
     if workflow_type == "coding":
         system_prompt = SUMMARIZER_SYSTEM_CODING
-        llm = get_llm(provider=provider or "openai", model_name=model_name or "gpt-4o-mini", temperature=0.2)
         history_turns = 6
-
     elif workflow_type == "data_analysis":
         system_prompt = SUMMARIZER_SYSTEM_DATA_ANALYSIS
-        llm = get_llm(provider=provider, model_name=model_name or "", temperature=0.2)
         history_turns = 6
-
     elif requires_context and docs:
         context = _build_context(docs)
         system_prompt = SUMMARIZER_SYSTEM_RESEARCH.format(context=context)
-        llm = get_llm(provider=provider, model_name=model_name or "", temperature=0.2)
         history_turns = 6
-
     else:
         system_prompt = SUMMARIZER_SYSTEM_SIMPLE
-        llm = get_llm(provider=provider, model_name=model_name or "", temperature=0.3)
         history_turns = 6
 
     messages = [SystemMessage(content=system_prompt)]
@@ -135,17 +131,65 @@ async def summarizer_node(state: AgentState) -> dict:
 
     messages.append(HumanMessage(content=query))
 
-    try:
-        response = await llm.ainvoke(messages)
-        summary_text = extract_text(response.content)
-    except Exception as e:
-        logger.error(f"LLM error in summarizer: {e}")
-        if "quota" in str(e).lower() or "429" in str(e):
-            summary_text = "AI quota exhausted. Please check your billing plan or switch providers."
-        elif "503" in str(e) or "unavailable" in str(e).lower():
+    # ── Provider failover loop ──────────────────────────────────────────────
+    fallback_providers = get_fallback_providers(provider)
+    logger.info(f"[Summarizer] fallback chain: {fallback_providers}")
+
+    summary_text = ""
+    last_error: Exception | None = None
+
+    for attempt_idx, attempt_provider in enumerate(fallback_providers):
+        try:
+            if attempt_idx > 0:
+                logger.warning(f"[Summarizer] failing over: {fallback_providers[attempt_idx-1]} -> {attempt_provider}")
+
+            attempt_model = model_name if attempt_idx == 0 else ""
+
+            if workflow_type == "coding":
+                llm = get_llm(provider=attempt_provider, model_name=attempt_model or "gpt-4o-mini", temperature=0.2)
+            elif workflow_type == "data_analysis":
+                llm = get_llm(provider=attempt_provider, model_name=attempt_model, temperature=0.2)
+            elif requires_context and docs:
+                llm = get_llm(provider=attempt_provider, model_name=attempt_model, temperature=0.2)
+            else:
+                llm = get_llm(provider=attempt_provider, model_name=attempt_model, temperature=0.3)
+
+            response = await llm.ainvoke(messages)
+            summary_text = extract_text(response.content)
+            break
+        except Exception as e:
+            last_error = e
+            err_msg = str(e).lower()
+            logger.error(f"[Summarizer] provider '{attempt_provider}' error: {e}")
+            has_more = attempt_idx < len(fallback_providers) - 1
+
+            if has_more:
+                next_prov = fallback_providers[attempt_idx + 1]
+                logger.warning(f"[Summarizer] failing over: {attempt_provider} -> {next_prov}")
+                
+                reason = "Error"
+                if "quota" in err_msg or "429" in err_msg:
+                    reason = "Quota exhausted"
+                elif "503" in err_msg or "unavailable" in err_msg:
+                    reason = "Service unavailable"
+                    
+                await adispatch_custom_event(
+                    "provider_switch", 
+                    {"from": attempt_provider, "to": next_prov, "reason": reason}
+                )
+                continue
+
+            break
+
+    # Fallback error message when all providers failed
+    if not summary_text and last_error is not None:
+        err = str(last_error).lower()
+        if "quota" in err or "429" in err:
+            summary_text = "AI quota exhausted on all available providers. Please check your billing plans."
+        elif "503" in err or "unavailable" in err:
             summary_text = "The AI provider is experiencing high demand. Please try again."
         else:
-            summary_text = f"AI provider error: {str(e)[:100]}"
+            summary_text = f"AI provider error: {str(last_error)[:100]}"
 
     logger.info(f"[Summarizer] Generated {len(summary_text)} chars")
 

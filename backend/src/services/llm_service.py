@@ -18,7 +18,7 @@ def get_chat_llm(
     Returns a cached LangChain chat model for the given provider.
 
     Args:
-        provider: 'openai' | 'anthropic' | 'google' | 'groq' | 'mistral' | 'ollama' | 'deepseek'
+        provider: 'anthropic' | 'google' | 'groq' | 'mistral'
                   Leave empty for DEFAULT_LLM_PROVIDER.
         model_name: Override the default model for the provider.
         temperature: Sampling temperature.

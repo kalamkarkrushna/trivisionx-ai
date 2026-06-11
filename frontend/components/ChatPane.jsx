@@ -120,6 +120,8 @@ const ChatPane = forwardRef(function ChatPane(
     isThinking,
     onPauseThinking,
     agentState,
+    providerSwitchEvent,
+    onDismissProviderSwitch,
   },
   ref,
 ) {
@@ -129,6 +131,20 @@ const ChatPane = forwardRef(function ChatPane(
   const [copiedId, setCopiedId] = useState(null);
   const composerRef = useRef(null);
   const bottomRef = useRef(null);
+
+  const switchTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (providerSwitchEvent) {
+      if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
+      switchTimerRef.current = setTimeout(() => {
+        onDismissProviderSwitch?.();
+      }, 6000);
+    }
+    return () => {
+      if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
+    };
+  }, [providerSwitchEvent, onDismissProviderSwitch]);
 
   useImperativeHandle(
     ref,
@@ -275,6 +291,32 @@ const ChatPane = forwardRef(function ChatPane(
       ) : (
         /* ── Active Conversation Layout ── */
         <>
+          {/* Provider Switch Notification Banner */}
+          <AnimatePresence>
+            {providerSwitchEvent && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="flex items-center justify-center gap-2 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800/40 px-4 py-2 text-[12px] text-amber-800 dark:text-amber-200"
+              >
+                <span>
+                  Switched from <strong>{providerSwitchEvent.from}</strong> to{" "}
+                  <strong>{providerSwitchEvent.to}</strong>
+                  {providerSwitchEvent.reason === "quota_exhausted"
+                    ? " (quota exhausted)"
+                    : ""}
+                </span>
+                <button
+                  onClick={onDismissProviderSwitch}
+                  className="ml-2 rounded-full p-0.5 hover:bg-amber-200/50 dark:hover:bg-amber-800/50 transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Messages scroll area */}
           <div className="flex-1 overflow-y-auto scroll-smooth">
             <div className="mx-auto max-w-3xl px-4 py-8">

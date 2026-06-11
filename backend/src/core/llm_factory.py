@@ -2,7 +2,7 @@
 src/core/llm_factory.py — Multi-LLM Provider Factory
 =====================================================
 Returns the appropriate LangChain chat model based on provider string.
-Supports: openai, anthropic, google, groq, mistral, ollama, deepseek
+Supports: anthropic, google, groq, mistral
 """
 from functools import lru_cache
 from typing import Optional
@@ -13,15 +13,14 @@ from src.core.logger import get_logger
 
 logger = get_logger(__name__)
 
+# Priority order for provider failover
+PROVIDER_PRIORITY = ["anthropic", "google", "groq", "mistral"]
 
 PROVIDER_MODEL_MAP = {
-    "openai":     ("OPENAI_API_KEY",     settings.OPENAI_CHAT_MODEL),
     "anthropic":  ("ANTHROPIC_API_KEY",  settings.ANTHROPIC_CHAT_MODEL),
     "google":     ("GOOGLE_API_KEY",     settings.GEMINI_MODEL),
     "groq":       ("GROQ_API_KEY",      settings.GROQ_CHAT_MODEL),
     "mistral":    ("MISTRAL_API_KEY",   settings.MISTRAL_CHAT_MODEL),
-    "ollama":     (None,                settings.OLLAMA_CHAT_MODEL),
-    "deepseek":   ("DEEPSEEK_API_KEY",  settings.DEEPSEEK_CHAT_MODEL),
 }
 
 
@@ -35,7 +34,7 @@ def get_llm(
     Factory: returns a LangChain chat model for the given provider.
 
     Args:
-        provider:  'openai' | 'anthropic' | 'google' | 'groq' | 'mistral' | 'ollama' | 'deepseek'
+        provider:  'anthropic' | 'google' | 'groq' | 'mistral'
         model_name: Override the default model for the provider.
         temperature: LLM temperature (0.0 - 1.0).
         streaming: Enable token-level streaming.
@@ -53,9 +52,7 @@ def get_llm(
 
     logger.info(f"LLM Factory: provider={provider}, model={model or 'default'}, temp={temperature}")
 
-    if provider == "openai":
-        return _build_openai(model, temperature, streaming)
-    elif provider == "anthropic":
+    if provider == "anthropic":
         return _build_anthropic(model, temperature, streaming)
     elif provider == "google":
         return _build_google(model, temperature, streaming)
@@ -63,10 +60,6 @@ def get_llm(
         return _build_groq(model, temperature, streaming)
     elif provider == "mistral":
         return _build_mistral(model, temperature, streaming)
-    elif provider == "ollama":
-        return _build_ollama(model, temperature, streaming)
-    elif provider == "deepseek":
-        return _build_deepseek(model, temperature, streaming)
     else:
         raise ValueError(f"Unknown LLM provider: '{provider}'. "
                          f"Supported: {', '.join(PROVIDER_MODEL_MAP)}")
@@ -79,8 +72,6 @@ def _resolve_provider(provider: str, model: str) -> str:
     if not model:
         return settings.DEFAULT_LLM_PROVIDER
     model_lower = model.lower()
-    if model_lower.startswith("gpt") or model_lower.startswith("o1") or model_lower.startswith("o3"):
-        return "openai"
     if model_lower.startswith("claude"):
         return "anthropic"
     if model_lower.startswith("gemini"):
@@ -89,8 +80,6 @@ def _resolve_provider(provider: str, model: str) -> str:
         return "groq"
     if model_lower.startswith("mistral"):
         return "mistral"
-    if model_lower.startswith("deepseek"):
-        return "deepseek"
     return settings.DEFAULT_LLM_PROVIDER
 
 
@@ -102,17 +91,6 @@ def _require_api_key(env_var: str, provider_name: str) -> str:
             f"Add it to your .env file to use {provider_name}."
         )
     return key
-
-
-def _build_openai(model: str, temperature: float, streaming: bool) -> BaseChatModel:
-    from langchain_openai import ChatOpenAI
-    api_key = _require_api_key("OPENAI_API_KEY", "OpenAI")
-    return ChatOpenAI(
-        model=model or settings.OPENAI_CHAT_MODEL,
-        temperature=temperature,
-        streaming=streaming,
-        api_key=api_key,
-    )
 
 
 def _build_anthropic(model: str, temperature: float, streaming: bool) -> BaseChatModel:
@@ -161,36 +139,39 @@ def _build_mistral(model: str, temperature: float, streaming: bool) -> BaseChatM
     )
 
 
-def _build_ollama(model: str, temperature: float, streaming: bool) -> BaseChatModel:
-    from langchain_ollama import ChatOllama
-    return ChatOllama(
-        model=model or settings.OLLAMA_CHAT_MODEL,
-        temperature=temperature,
-        base_url=settings.OLLAMA_BASE_URL,
-        streaming=streaming,
-    )
-
-
-def _build_deepseek(model: str, temperature: float, streaming: bool) -> BaseChatModel:
-    from langchain_openai import ChatOpenAI
-    api_key = _require_api_key("DEEPSEEK_API_KEY", "DeepSeek")
-    return ChatOpenAI(
-        model=model or settings.DEEPSEEK_CHAT_MODEL,
-        temperature=temperature,
-        streaming=streaming,
-        api_key=api_key,
-        base_url="https://api.deepseek.com/v1",
-    )
-
 
 def get_available_providers() -> dict:
     """Return which providers are configured (have API keys set)."""
     return {
-        "openai":    bool(settings.OPENAI_API_KEY),
         "anthropic": bool(settings.ANTHROPIC_API_KEY),
         "google":    bool(settings.GOOGLE_API_KEY),
         "groq":      bool(settings.GROQ_API_KEY),
         "mistral":   bool(settings.MISTRAL_API_KEY),
-        "ollama":    True,
-        "deepseek":  bool(settings.DEEPSEEK_API_KEY),
     }
+
+
+def get_fallback_providers(primary_provider: str) -> list[str]:
+    """
+    Return ordered list of providers to try, starting with the primary.
+
+    On quota failure the caller should iterate through this list and
+    emit a *provider_switch* SSE event on each retry.
+    """
+    configured = get_available_providers()
+    result: list[str] = []
+    primary = primary_provider.lower().strip() if primary_provider else settings.DEFAULT_LLM_PROVIDER
+
+    if configured.get(primary, False):
+        result.append(primary)
+
+    for p in PROVIDER_PRIORITY:
+        if p != primary and configured.get(p, False):
+            result.append(p)
+
+    return result
+
+
+def is_quota_error(exc: Exception) -> bool:
+    """Detect quota / rate-limit / resource-exhausted errors across providers."""
+    msg = str(exc).lower()
+    return any(kw in msg for kw in ("429", "quota", "resource_exhausted", "rate_limit", "rate limit"))

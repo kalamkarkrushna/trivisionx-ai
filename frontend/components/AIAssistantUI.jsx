@@ -113,6 +113,7 @@ export default function AIAssistantUI() {
   const [isThinking, setIsThinking] = useState(false);
   const [thinkingConvId, setThinkingConvId] = useState(null);
   const [agentState, setAgentState] = useState(null);
+  const [providerSwitchEvent, setProviderSwitchEvent] = useState(null);
   const [user, setUser] = useState(null);
 
   const fetchUser = async () => {
@@ -433,6 +434,7 @@ export default function AIAssistantUI() {
     setIsThinking(true);
     setThinkingConvId(targetConvId);
     setAgentState(null);
+    setProviderSwitchEvent(null);
 
     try {
       const apiUrl =
@@ -533,6 +535,11 @@ export default function AIAssistantUI() {
                   );
                 }
 
+                // ── Provider Switch: {type: "provider_switch", from, to, reason} ──
+                if (data.type === "provider_switch") {
+                  setProviderSwitchEvent({ from: data.from, to: data.to, reason: data.reason });
+                }
+
                 // ── Done: {done: true, sources: [...]} ──────────────────────
                 if (data.done) {
                   setConversations((prev) =>
@@ -548,6 +555,7 @@ export default function AIAssistantUI() {
                   // Also clear thinking in case no tokens arrived (edge case)
                   setIsThinking(false);
                   setThinkingConvId(null);
+                  setProviderSwitchEvent(null);
                 }
               } catch (e) {
                 // Ignore incomplete JSON parses as chunks might break mid-string, although unlikely with \n\n boundaries
@@ -683,6 +691,8 @@ export default function AIAssistantUI() {
           isThinking={isThinking && thinkingConvId === selected?.id}
           onPauseThinking={pauseThinking}
           agentState={agentState}
+          providerSwitchEvent={providerSwitchEvent}
+          onDismissProviderSwitch={() => setProviderSwitchEvent(null)}
         />
       </main>
     </div>

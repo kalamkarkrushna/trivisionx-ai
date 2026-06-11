@@ -37,11 +37,6 @@ class Settings(BaseSettings):
     PINECONE_INDEX_NAME: str = "trishul-ui"
     PINECONE_ENVIRONMENT: str = "us-east-1"
 
-    # ── OpenAI ────────────────────────────────────────────────────────────────
-    OPENAI_API_KEY: str = ""
-    OPENAI_CHAT_MODEL: str = "gpt-4o-mini"
-    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
-
     # ── Anthropic ─────────────────────────────────────────────────────────────
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_CHAT_MODEL: str = "claude-sonnet-4-20250514"
@@ -57,14 +52,6 @@ class Settings(BaseSettings):
     # ── Mistral ───────────────────────────────────────────────────────────────
     MISTRAL_API_KEY: str = ""
     MISTRAL_CHAT_MODEL: str = "mistral-large-latest"
-
-    # ── Ollama (local) ────────────────────────────────────────────────────────
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_CHAT_MODEL: str = "llama3"
-
-    # ── DeepSeek ──────────────────────────────────────────────────────────────
-    DEEPSEEK_API_KEY: str = ""
-    DEEPSEEK_CHAT_MODEL: str = "deepseek-chat"
 
     # ── Embedding model ───────────────────────────────────────────────────────
     EMBEDDING_PROVIDER: str = "google"
