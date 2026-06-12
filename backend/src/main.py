@@ -106,7 +106,7 @@ def create_app() -> FastAPI:
     origins = [
         settings.FRONTEND_URL,
         "http://localhost:3000",
-        "http://127.0.0.1:3000",
+       "https://ai-research-copilot-rosy.vercel.app",
     ]
     # Deduplicate while preserving order
     origins = list(dict.fromkeys(o for o in origins if o))
