@@ -103,9 +103,13 @@ def create_app() -> FastAPI:
     )
 
     # ── CORS ──────────────────────────────────────────────────────────────────
-    origins = [settings.FRONTEND_URL]
-    if "localhost:3000" not in settings.FRONTEND_URL:
-        origins.append("http://localhost:3000")
+    origins = [
+        settings.FRONTEND_URL,
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+    # Deduplicate while preserving order
+    origins = list(dict.fromkeys(o for o in origins if o))
 
     app.add_middleware(
         CORSMiddleware,

@@ -1,18 +1,29 @@
 services:
   # ============================================================
-  # FastAPI Backend — Render Web Service
+  # Frontend — Render Web Service (Docker)
+  # ============================================================
+  - type: web
+    name: ai-research-copilot-frontend
+    env: docker
+    region: ohio
+    plan: free
+    rootDir: frontend
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: "https://ai-research-copilot-backend.onrender.com/api"
+
+  # ============================================================
+  # Backend — Render Web Service (Docker)
   # ============================================================
   - type: web
     name: ai-research-copilot-backend
-    env: python
+    env: docker
     region: ohio
     plan: free
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn index:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: ./Dockerfile
     envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.0"
       # ── AI Provider ────────────────────────────────────────
       - key: GOOGLE_API_KEY
         sync: false
@@ -40,9 +51,6 @@ services:
         value: "1440"
       # ── App ────────────────────────────────────────────────
       - key: FRONTEND_URL
-        sync: false
+        value: "https://ai-research-copilot-frontend.onrender.com"
       - key: DEBUG
         value: "false"
-      # ── Cache (optional) ───────────────────────────────────
-      - key: REDIS_URL
-        sync: false

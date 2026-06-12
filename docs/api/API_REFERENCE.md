@@ -1,9 +1,9 @@
 # API Reference — AI Research Copilot Platform
 
-> **Base URL (local):** `http://localhost:8000`  
+> **Base URL (local):** `https://ai-research-copilot-v3ot.onrender.com`  
 > **Authentication:** Bearer JWT token in `Authorization` header  
-> **OpenAPI UI:** `http://localhost:8000/docs`  
-> **ReDoc:** `http://localhost:8000/redoc`
+> **OpenAPI UI:** `https://ai-research-copilot-v3ot.onrender.com/docs`  
+> **ReDoc:** `https://ai-research-copilot-v3ot.onrender.com/redoc`
 
 ---
 

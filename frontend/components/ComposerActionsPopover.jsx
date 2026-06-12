@@ -96,7 +96,7 @@ export default function ComposerActionsPopover({ children }) {
     formData.append("file", file);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://ai-research-copilot-v3ot.onrender.com/api";
       const res = await fetch(`${apiUrl}/documents/upload/stream`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -125,7 +125,7 @@ export default function ComposerActionsPopover({ children }) {
                   if (data.chunks) setUploadChunks(data.chunks);
                 }
                 if (data.error) throw new Error(data.error);
-                
+
                 if (data.stage === "done") {
                   setTimeout(() => {
                     setUploadingStage(null);
@@ -146,7 +146,7 @@ export default function ComposerActionsPopover({ children }) {
       setUploadingStage(null);
       setIsUploading(false);
     }
-    
+
     // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = "";
   };

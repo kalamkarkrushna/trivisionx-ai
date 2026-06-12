@@ -92,7 +92,7 @@ export default function AuthPage() {
     setIsLoading(true)
     try {
       if (isSignUp) {
-        const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api"
+        const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://ai-research-copilot-v3ot.onrender.com/api"
         const res = await fetch(`${apiUrl}/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -114,7 +114,7 @@ export default function AuthPage() {
           setForm((p) => ({ ...p, password: "", confirmPassword: "" }))
         }, 1600)
       } else {
-        const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api"
+        const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://ai-research-copilot-v3ot.onrender.com/api"
         const res = await fetch(`${apiUrl}/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

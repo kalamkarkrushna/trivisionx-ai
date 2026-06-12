@@ -130,8 +130,8 @@ docker-compose up --build -d
 | Service | URL |
 |---|---|
 | **Web App** | [http://localhost:3000](http://localhost:3000) |
-| **API Docs (Swagger)** | [http://localhost:8000/docs](http://localhost:8000/docs) |
-| **System Health** | [http://localhost:8000/api/health/](http://localhost:8000/api/health/) |
+| **API Docs (Swagger)** | [https://ai-research-copilot-v3ot.onrender.com/docs](https://ai-research-copilot-v3ot.onrender.com/docs) |
+| **System Health** | [https://ai-research-copilot-v3ot.onrender.com/api/health/](https://ai-research-copilot-v3ot.onrender.com/api/health/) |
 
 ---
 

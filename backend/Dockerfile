@@ -26,6 +26,11 @@ FROM python:3.11-slim AS production
 
 WORKDIR /app
 
+# Install CA certificates for TLS (required for MongoDB Atlas / Pinecone)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy the virtual environment from the builder
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"

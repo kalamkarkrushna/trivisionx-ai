@@ -23,6 +23,7 @@ langchain-mistralai
 pinecone
 motor
 pymongo
+certifi
 
 bcrypt
 python-jose[cryptography]

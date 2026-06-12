@@ -29,7 +29,14 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 async def get_user(email: str):
-    return await _users().find_one({"email": email})
+    import asyncio
+    from pymongo.errors import PyMongoError
+    try:
+        return await _users().find_one({"email": email})
+    except PyMongoError as e:
+        if type(e).__name__ == "_OperationCancelled":
+            raise asyncio.CancelledError() from e
+        raise
 
 async def authenticate_user(email: str, password: str):
     user = await get_user(email)

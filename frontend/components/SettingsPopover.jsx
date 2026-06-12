@@ -54,10 +54,9 @@ function MenuItem({
       onClick={onClick}
       {...motionProps}
       className={`group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-[12.5px] text-left transition-all duration-150 ${Component === motion.button ? "active:scale-[0.98]" : ""}
-        ${
-          danger
-            ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
-            : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100/80 dark:hover:bg-white/[0.06]"
+        ${danger
+          ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+          : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100/80 dark:hover:bg-white/[0.06]"
         } ${className}`}
     >
       <div
@@ -81,7 +80,7 @@ function MenuItem({
 }
 
 /* ── main component ──────────────────────────────────────────────────────── */
-export default function SettingsPopover({ children, onUserUpdate = () => {} }) {
+export default function SettingsPopover({ children, onUserUpdate = () => { } }) {
   const [open, setOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [user, setUser] = useState(null);
@@ -100,27 +99,27 @@ export default function SettingsPopover({ children, onUserUpdate = () => {} }) {
       typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!token) return;
     fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api"}/me`,
+      `${process.env.NEXT_PUBLIC_API_BASE_URL || "https://ai-research-copilot-v3ot.onrender.com/api"}/me`,
       {
         headers: { Authorization: `Bearer ${token}` },
       },
     )
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => data && setUser(data))
-      .catch(() => {});
+      .catch(() => { });
   }, [open]);
 
   const initials = user
     ? (
-        (user.first_name?.[0] || "") + (user.last_name?.[0] || "")
-      ).toUpperCase() ||
-      user.username?.[0]?.toUpperCase() ||
-      "U"
+      (user.first_name?.[0] || "") + (user.last_name?.[0] || "")
+    ).toUpperCase() ||
+    user.username?.[0]?.toUpperCase() ||
+    "U"
     : "U";
   const displayName = user
     ? `${user.first_name || ""} ${user.last_name || ""}`.trim() ||
-      user.username ||
-      "User"
+    user.username ||
+    "User"
     : "User";
   const email = user?.email || "";
 
