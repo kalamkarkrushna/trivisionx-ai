@@ -98,9 +98,23 @@ export default function Message({ role, content, sources, quality_score, childre
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeHighlight]}
                 components={{
-                  pre: ({ node, ...props }) => <div {...props} />,
-                  code: ({ node, inline, className, children, ...props }) =>
-                    inline ? (
+                  pre: ({ children }) => <>{children}</>,
+                  code: ({ node, className, children, ...props }) => {
+                    // Block code: parent is <pre>, use CodeBlock with div/pre wrapper
+                    const isBlock = node?.position && className?.startsWith("language-") ||
+                      (node?.parent?.tagName === "pre") ||
+                      (typeof children === "string" && children.includes("\n"));
+                    
+                    if (isBlock || className) {
+                      return (
+                        <CodeBlock className={className} {...props}>
+                          {children}
+                        </CodeBlock>
+                      );
+                    }
+
+                    // Inline code: simple <code> element (safe inside <p>)
+                    return (
                       <code
                         className={cls(
                           "rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[12px] dark:bg-zinc-800",
@@ -110,11 +124,8 @@ export default function Message({ role, content, sources, quality_score, childre
                       >
                         {children}
                       </code>
-                    ) : (
-                      <CodeBlock className={className} {...props}>
-                        {children}
-                      </CodeBlock>
-                    ),
+                    );
+                  },
                 }}
               >
                 {typeof content === 'string' ? content : JSON.stringify(content, null, 2)}

@@ -241,6 +241,11 @@ async def stream_chat_response(
 
             # Token-level streaming from the LLM
             elif kind == "on_chat_model_stream":
+                # Only stream tokens from output-facing nodes, not internal reasoning nodes
+                langgraph_node = event.get("metadata", {}).get("langgraph_node", active_node)
+                if langgraph_node in ("planner", "retriever", "citation"):
+                    continue
+
                 chunk = data.get("chunk")
                 if chunk and hasattr(chunk, "content") and chunk.content:
                     token = extract_text(chunk.content)

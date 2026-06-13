@@ -34,6 +34,8 @@ docx2txt
 
 
 httpx
+google-auth
+requests
 
 
 setuptools

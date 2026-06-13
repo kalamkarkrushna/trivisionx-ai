@@ -29,6 +29,8 @@ from src.middleware.request_logger import RequestLoggerMiddleware
 # ── Routers ───────────────────────────────────────────────────────────────────
 print("Importing routers...")
 from src.api.routes.auth_routes import router as auth_router
+from src.api.routes.google_auth import router as google_auth_router
+from src.api.routes.github_auth import router as github_auth_router
 from src.api.routes.chat_routes import router as chat_router
 from src.api.routes.upload_routes import router as upload_router
 from src.api.routes.report_routes import router as report_router
@@ -123,6 +125,8 @@ def create_app() -> FastAPI:
 
     # ── Routers ───────────────────────────────────────────────────────────────
     app.include_router(auth_router,          prefix="/api/auth",                tags=["auth"])
+    app.include_router(google_auth_router,   prefix="/api/auth/google",         tags=["auth-google"])
+    app.include_router(github_auth_router,   prefix="/api/auth/github",         tags=["auth-github"])
     # Legacy alias: /api/me, /api/login, /api/register → same auth routes
     app.include_router(auth_router,          prefix="/api",                     tags=["auth-legacy"])
     app.include_router(conversations_router, prefix="/api/conversations",       tags=["conversations"])

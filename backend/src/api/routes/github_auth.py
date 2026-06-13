@@ -1,0 +1,192 @@
+"""
+GitHub OAuth2 SSO routes — login redirect and callback.
+========================================================
+Flow:
+  1. GET  /login  → returns GitHub authorization URL
+  2. POST /callback → exchanges auth code for token, fetches user info, upserts user, returns JWT
+"""
+import urllib.parse
+from datetime import datetime
+
+import httpx
+from fastapi import APIRouter, HTTPException, status
+
+from src.core.config import settings
+from src.core.security import create_access_token
+from src.core.constants import COLLECTION_USERS
+from src.core.logger import get_logger
+from src.database.mongodb.connection import get_database
+
+logger = get_logger(__name__)
+router = APIRouter()
+
+# GitHub OAuth2 endpoints
+GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize"
+GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
+GITHUB_USER_URL = "https://api.github.com/user"
+GITHUB_EMAILS_URL = "https://api.github.com/user/emails"
+
+
+def _users():
+    return get_database()[COLLECTION_USERS]
+
+
+@router.get("/login")
+async def github_login():
+    """
+    Returns the GitHub OAuth2 authorization URL.
+    The frontend should redirect the user to this URL.
+    """
+    if not settings.GITHUB_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GitHub OAuth is not configured (GITHUB_CLIENT_ID missing)",
+        )
+
+    params = {
+        "client_id": settings.GITHUB_CLIENT_ID,
+        "redirect_uri": settings.REDIRECT_URI,
+        "scope": "read:user user:email",
+        "state": "github",  # Used by frontend to route callback to the right provider
+    }
+    url = f"{GITHUB_AUTH_URL}?{urllib.parse.urlencode(params)}"
+    return {"authorization_url": url}
+
+
+@router.post("/callback")
+async def github_callback(payload: dict):
+    """
+    Exchanges the authorization code for an access token, fetches user info
+    from GitHub API, upserts the user in MongoDB, and returns a JWT.
+    """
+    code = payload.get("code")
+    if not code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Authorization code is required",
+        )
+
+    # ── Exchange code for access token ────────────────────────────────────
+    token_data = {
+        "client_id": settings.GITHUB_CLIENT_ID,
+        "client_secret": settings.GITHUB_CLIENT_SECRET,
+        "code": code,
+        "redirect_uri": settings.REDIRECT_URI,
+    }
+
+    async with httpx.AsyncClient() as client:
+        token_response = await client.post(
+            GITHUB_TOKEN_URL,
+            data=token_data,
+            headers={"Accept": "application/json"},
+        )
+
+    if token_response.status_code != 200:
+        logger.error(f"GitHub token exchange failed: {token_response.text}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to exchange authorization code with GitHub",
+        )
+
+    tokens = token_response.json()
+    access_token = tokens.get("access_token")
+
+    if not access_token:
+        error_desc = tokens.get("error_description", "Unknown error")
+        logger.error(f"GitHub token exchange error: {error_desc}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"GitHub OAuth error: {error_desc}",
+        )
+
+    # ── Fetch user profile from GitHub API ────────────────────────────────
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+    }
+
+    async with httpx.AsyncClient() as client:
+        user_response = await client.get(GITHUB_USER_URL, headers=headers)
+
+    if user_response.status_code != 200:
+        logger.error(f"GitHub user info fetch failed: {user_response.text}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to fetch user info from GitHub",
+        )
+
+    github_user = user_response.json()
+
+    # ── Get email (may be private) ────────────────────────────────────────
+    email = github_user.get("email")
+    if not email:
+        # Fetch from /user/emails endpoint
+        async with httpx.AsyncClient() as client:
+            emails_response = await client.get(GITHUB_EMAILS_URL, headers=headers)
+
+        if emails_response.status_code == 200:
+            emails = emails_response.json()
+            # Prefer primary verified email
+            for e in emails:
+                if e.get("primary") and e.get("verified"):
+                    email = e["email"]
+                    break
+            # Fallback to any verified email
+            if not email:
+                for e in emails:
+                    if e.get("verified"):
+                        email = e["email"]
+                        break
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not retrieve email from GitHub. Please make your email public in GitHub settings.",
+        )
+
+    # ── Upsert user in MongoDB ────────────────────────────────────────────
+    github_id = str(github_user.get("id", ""))
+    username = github_user.get("login", "")
+    name = github_user.get("name", "")
+    avatar_url = github_user.get("avatar_url", "")
+
+    # Split name into first/last
+    name_parts = name.split(" ", 1) if name else ["", ""]
+    first_name = name_parts[0]
+    last_name = name_parts[1] if len(name_parts) > 1 else ""
+
+    existing_user = await _users().find_one({"email": email})
+
+    if existing_user:
+        # Update GitHub-specific fields if missing
+        update_fields = {"updated_at": datetime.utcnow()}
+        if not existing_user.get("github_id"):
+            update_fields["github_id"] = github_id
+        if not existing_user.get("avatar_url") and avatar_url:
+            update_fields["avatar_url"] = avatar_url
+        if not existing_user.get("auth_provider"):
+            update_fields["auth_provider"] = "github"
+
+        await _users().update_one(
+            {"_id": existing_user["_id"]},
+            {"$set": update_fields},
+        )
+        logger.info(f"GitHub SSO: existing user logged in — {email}")
+    else:
+        # Create new SSO user (no password)
+        new_user = {
+            "email": email,
+            "username": username or email.split("@")[0],
+            "first_name": first_name,
+            "last_name": last_name,
+            "github_id": github_id,
+            "avatar_url": avatar_url,
+            "auth_provider": "github",
+            "created_at": datetime.utcnow(),
+        }
+        await _users().insert_one(new_user)
+        logger.info(f"GitHub SSO: new user created — {email}")
+
+    # ── Issue JWT ─────────────────────────────────────────────────────────
+    jwt_token = create_access_token(data={"sub": email})
+    return {"access_token": jwt_token, "token_type": "bearer"}

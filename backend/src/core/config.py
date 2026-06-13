@@ -45,6 +45,16 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
+    # ── Google OAuth2 SSO ───────────────────────────────────────────────────
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    REDIRECT_URI: str = "http://localhost:3000/login"
+
+    # ── GitHub OAuth2 SSO ─────────────────────────────────────────────────
+    GITHUB_CLIENT_ID: str = ""
+    GITHUB_CLIENT_SECRET: str = ""
+    REDIRECT_URI: str = "http://localhost:3000/login"
+
     # ── Groq ──────────────────────────────────────────────────────────────────
     GROQ_API_KEY: str = ""
     GROQ_CHAT_MODEL: str = "llama-3.3-70b-versatile"
