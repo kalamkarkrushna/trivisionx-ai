@@ -108,7 +108,7 @@ def create_app() -> FastAPI:
     origins = [
         settings.FRONTEND_URL,
         "http://localhost:3000",
-       "https://trivisionx-ai-rosy.vercel.app",
+        "https://trivisionx-ai.vercel.app",
     ]
     # Deduplicate while preserving order
     origins = list(dict.fromkeys(o for o in origins if o))
