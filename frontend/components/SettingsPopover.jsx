@@ -141,9 +141,10 @@ export default function SettingsPopover({ children, onUserUpdate = () => { } }) 
 
         <PopoverContent
           className="w-64 p-0 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-950"
-          align="end"
-          side="right"
+          align="start"
+          side="top"
           sideOffset={10}
+          collisionPadding={16}
         >
           <AnimatePresence>
             {open && (
